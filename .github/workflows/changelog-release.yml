@@ -1,0 +1,73 @@
+name: Changelog Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  promote-changelog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Promote unreleased to version
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          DATE=$(date +%Y-%m-%d)
+
+          # Extract everything between "## Unreleased" and the next "## " or end of file
+          # Then replace the Unreleased section with empty subsections and insert a new version section
+          python3 - <<'PYEOF'
+          import re, os
+
+          version = os.environ["VERSION"]
+          date = os.environ["DATE"]
+
+          with open(".github/CHANGELOG.md", "r") as f:
+              content = f.read()
+
+          # Match the Unreleased section content (between ## Unreleased and next ## or EOF)
+          pattern = r"(## Unreleased\n)(.*?)(?=\n## |\Z)"
+          match = re.search(pattern, content, re.DOTALL)
+
+          if not match:
+              print("No Unreleased section found")
+              exit(0)
+
+          unreleased_content = match.group(2).strip()
+
+          # Check if there are any actual entries (not just empty ### headers)
+          entries = [l for l in unreleased_content.split("\n") if l.startswith("- ")]
+          if not entries:
+              print("No entries in Unreleased section")
+              exit(0)
+
+          # Build new version section
+          version_section = f"## {version} — {date}\n\n{unreleased_content}"
+
+          # Replace: empty Unreleased + insert version section below it
+          new_unreleased = "## Unreleased\n\n### Added\n\n### Fixed\n"
+          new_content = content[:match.start()] + new_unreleased + "\n" + version_section + content[match.end():]
+
+          with open(".github/CHANGELOG.md", "w") as f:
+              f.write(new_content)
+
+          print(f"Promoted Unreleased to {version} ({date})")
+          PYEOF
+
+      - name: Commit changelog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/CHANGELOG.md
+          git diff --cached --quiet || git commit -m "changelog: promote unreleased to ${GITHUB_REF_NAME}"
+          git push

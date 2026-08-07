@@ -1,0 +1,56 @@
+name: Update Changelog
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  update-changelog:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Categorize and update changelog
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          SHORT_SHA="${MERGE_SHA:0:7}"
+          REPO="${{ github.repository }}"
+
+          ENTRY="- ([\`${SHORT_SHA}\`](https://github.com/${REPO}/commit/${MERGE_SHA})) ${PR_TITLE} - @${PR_AUTHOR} ([#${PR_NUMBER}](https://github.com/${REPO}/pull/${PR_NUMBER}))"
+
+          # Determine section based on PR title prefix
+          if echo "$PR_TITLE" | grep -iqE "^feat"; then
+            SECTION="Added"
+          elif echo "$PR_TITLE" | grep -iqE "^fix"; then
+            SECTION="Fixed"
+          else
+            SECTION="Added"
+          fi
+
+          # Insert the entry under the correct section in Unreleased
+          if [ "$SECTION" = "Added" ]; then
+            sed -i "/^### Added$/a\\${ENTRY}" .github/CHANGELOG.md
+          else
+            sed -i "/^### Fixed$/a\\${ENTRY}" .github/CHANGELOG.md
+          fi
+
+      - name: Commit changelog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/CHANGELOG.md
+          git diff --cached --quiet || git commit -m "changelog: add PR #${{ github.event.pull_request.number }}"
+          git push

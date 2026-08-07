@@ -235,6 +235,7 @@
 
   :global(.card .separator) {
     opacity: 0.4;
+    user-select: none;
   }
 
   :global(.card .status-label) {
