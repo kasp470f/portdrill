@@ -89,8 +89,8 @@
   }
 
   :global(.rule-list .grid) {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 12px;
   }
 

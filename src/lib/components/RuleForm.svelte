@@ -331,6 +331,10 @@
     background: rgba(108, 140, 255, 0.1);
   }
 
+  .type-btn:hover:not(.selected) {
+    background: var(--border)
+  }
+
   .type-btn .badge {
     font-weight: 700;
   }

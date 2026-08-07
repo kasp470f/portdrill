@@ -30,6 +30,7 @@
         "title": "TunnelApp",
         "width": 900,
         "height": 650,
+        "minWidth": 650,
         "resizable": true,
         "fullscreen": false,
         "devtools": true

@@ -41,7 +41,7 @@
 </span>
 
 <style>
-  .status-dot {
+  :global(.status-dot) {
     display: inline-block;
     width: 10px;
     height: 10px;
@@ -51,7 +51,7 @@
     flex-shrink: 0;
   }
 
-  .pulse {
+  :global(.status-dot .pulse) {
     position: absolute;
     inset: -3px;
     border-radius: 50%;
@@ -60,7 +60,7 @@
     animation: pulse 1.5s ease-in-out infinite;
   }
 
-  @keyframes pulse {
+  @keyframes -global-pulse {
     0%,
     100% {
       transform: scale(1);
