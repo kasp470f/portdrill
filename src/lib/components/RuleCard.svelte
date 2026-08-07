@@ -174,8 +174,10 @@
   }
 
   :global(.card .badges) {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: repeat(2, auto);
+    grid-auto-flow: column;
+    grid-auto-columns: auto;
     gap: 3px;
   }
 
