@@ -179,6 +179,7 @@
     grid-auto-flow: column;
     grid-auto-columns: auto;
     gap: 3px;
+    user-select: none;
   }
 
   :global(.card .type-badge) {
