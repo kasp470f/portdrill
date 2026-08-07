@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicedayfor/tauri/v2/crates/tauri-cli/schema.json",
+  "productName": "TunnelApp",
+  "version": "0.1.0",
+  "identifier": "com.tunnelapp.dev",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "TunnelApp",
+        "width": 900,
+        "height": 650,
+        "resizable": true,
+        "fullscreen": false,
+        "devtools": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {}
+}
