@@ -13,15 +13,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: ubuntu-22.04
-            args: ""
-          - platform: macos-latest
-            args: "--target aarch64-apple-darwin"
-          - platform: macos-13
-            args: "--target x86_64-apple-darwin"
-          - platform: windows-latest
-            args: ""
+        platform:
+          - ubuntu-22.04
+          - macos-latest
+          - macos-13
+          - windows-latest
 
     runs-on: ${{ matrix.platform }}
 
@@ -64,4 +60,3 @@ jobs:
           releaseBody: "SSH Port Forwarding Manager — download the installer for your platform below."
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
