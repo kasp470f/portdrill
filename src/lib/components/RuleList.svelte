@@ -4,6 +4,7 @@
   import { rules, loading, fetchRules, listenForStatusChanges } from "../stores/rules";
   import RuleCard from "./RuleCard.svelte";
   import RuleForm from "./RuleForm.svelte";
+  import AppButton from "./AppButton.svelte";
 
   let showForm = $state(false);
   let editTarget: RuleWithStatus | null = $state(null);
@@ -34,7 +35,7 @@
     <span class="count">
       {$rules.length} rule{$rules.length !== 1 ? "s" : ""}
     </span>
-    <button class="btn-add" onclick={openNew}>+ Add Rule</button>
+    <AppButton onclick={openNew}>+ Add Rule</AppButton>
   </div>
 
   <div class="rules-container">

@@ -20,7 +20,7 @@
   :global(main) {
     max-width: 960px;
     margin: 0 auto;
-    padding: 40px 48px;
+    padding: 28px 48px 40px;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -37,8 +37,7 @@
   }
 
   .app-icon {
-    width: 40px;
-    height: 40px;
+    height: 52px;
     flex-shrink: 0;
   }
 
@@ -51,6 +50,5 @@
   :global(main header p) {
     font-size: 0.875rem;
     color: var(--text-secondary);
-    margin-top: 2px;
   }
 </style>

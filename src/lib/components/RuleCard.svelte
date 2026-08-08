@@ -3,6 +3,7 @@
   import { forwardSummary, forwardTypeLabel } from "../types";
   import { toggleRule, deleteRule } from "../stores/rules";
   import StatusDot from "./StatusDot.svelte";
+  import AppButton from "./AppButton.svelte";
 
   interface Props {
     rule: RuleWithStatus;
@@ -13,7 +14,7 @@
   let toggling = $state(false);
   let deleting = $state(false);
   let menuOpen = $state(false);
-  let confirmingDelete = $state(false);
+  let deleteDialogOpen = $state(false);
   let showForwards = $state(false);
 
   let isActive = $derived(
@@ -45,21 +46,49 @@
     deleting = true;
     try {
       await deleteRule(rule.id);
+      closeDeleteDialog();
     } catch (e) {
       console.error("Delete failed:", e);
+    } finally {
       deleting = false;
     }
   }
 
   function closeMenu() {
     menuOpen = false;
-    confirmingDelete = false;
+  }
+
+  function openDeleteDialog() {
+    deleteDialogOpen = true;
+    menuOpen = false;
+  }
+
+  function closeDeleteDialog() {
+    deleteDialogOpen = false;
   }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 {#if menuOpen}
   <div class="menu-backdrop" onclick={closeMenu}></div>
+{/if}
+
+{#if deleteDialogOpen}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="dialog-backdrop" onclick={closeDeleteDialog}></div>
+  <!-- svelte-ignore a11y_interactive_supports_focus -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-rule-title" onclick={(e) => e.stopPropagation()}>
+    <h3 id="delete-rule-title">Delete rule?</h3>
+    <p>Are you sure you want to delete <strong>{rule.name}</strong>?</p>
+    <div class="dialog-actions">
+      <AppButton type="plain" onclick={closeDeleteDialog}>Cancel</AppButton>
+      <AppButton type="danger" onclick={() => { void handleDelete(); }} disabled={deleting}>
+        {deleting ? "Deleting..." : "Delete rule"}
+      </AppButton>
+    </div>
+  </div>
 {/if}
 
 <div class="card" class:active={isActive} class:error={rule.tunnelStatus.status === "error"}>
@@ -103,18 +132,9 @@
             <button class="menu-item" onclick={() => { onEdit(rule); closeMenu(); }} disabled={isActive}>
               Edit rule
             </button>
-            {#if confirmingDelete}
-              <button class="menu-item danger" onclick={() => { handleDelete(); closeMenu(); }} disabled={deleting}>
-                Confirm delete
-              </button>
-              <button class="menu-item" onclick={() => confirmingDelete = false}>
-                Cancel
-              </button>
-            {:else}
-              <button class="menu-item danger" onclick={() => confirmingDelete = true} disabled={isActive}>
-                Delete rule
-              </button>
-            {/if}
+            <button class="menu-item danger" onclick={openDeleteDialog} disabled={isActive}>
+              Delete rule
+            </button>
           </div>
         {/if}
       </div>
@@ -368,6 +388,70 @@
     position: fixed;
     inset: 0;
     z-index: 40;
+  }
+
+  :global(.dialog-backdrop) {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  :global(.delete-dialog) {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 70;
+    width: min(420px, calc(100vw - 24px));
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  :global(.delete-dialog h3) {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  :global(.delete-dialog p) {
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  :global(.dialog-actions) {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  :global(.dialog-btn) {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  :global(.dialog-btn.secondary) {
+    background: var(--bg-input);
+    color: var(--text-primary);
+  }
+
+  :global(.dialog-btn.danger) {
+    background: var(--danger);
+    color: white;
+  }
+
+  :global(.dialog-btn:disabled) {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   /* Forwards (collapsible) */
