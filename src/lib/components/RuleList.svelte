@@ -37,20 +37,22 @@
     <button class="btn-add" onclick={openNew}>+ Add Rule</button>
   </div>
 
-  {#if $loading}
-    <div class="empty">Loading...</div>
-  {:else if $rules.length === 0}
-    <div class="empty">
-      <p>No forwarding rules yet.</p>
-      <p class="hint">Click "Add Rule" to create your first SSH tunnel.</p>
-    </div>
-  {:else}
-    <div class="grid">
-      {#each $rules as rule (rule.id)}
-        <RuleCard {rule} onEdit={openEdit} />
-      {/each}
-    </div>
-  {/if}
+  <div class="rules-container">
+    {#if $loading}
+      <div class="empty">Loading...</div>
+    {:else if $rules.length === 0}
+      <div class="empty">
+        <p>No forwarding rules yet.</p>
+        <p class="hint">Click "Add Rule" to create your first SSH tunnel.</p>
+      </div>
+    {:else}
+      <div class="grid">
+        {#each $rules as rule (rule.id)}
+          <RuleCard {rule} onEdit={openEdit} />
+        {/each}
+      </div>
+    {/if}
+  </div>
 </div>
 
 {#if showForm}
@@ -62,6 +64,7 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    flex: 1;
   }
 
   :global(.rule-list .toolbar) {
@@ -86,6 +89,15 @@
 
   :global(.rule-list .btn-add:hover) {
     background: var(--accent-hover);
+  }
+
+  :global(.rule-list .rules-container) {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    flex: 1;
+    height: 100%;
+    background-color: color-mix(in srgb, var(--bg-card) 20%, transparent 80%);
   }
 
   :global(.rule-list .grid) {

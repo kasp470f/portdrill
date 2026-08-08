@@ -15,6 +15,9 @@
     max-width: 960px;
     margin: 0 auto;
     padding: 40px 48px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
   :global(main header) {

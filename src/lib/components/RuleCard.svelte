@@ -141,7 +141,7 @@
   }
 
   :global(.card:hover) {
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    border-color: color-mix(in srgb, var(--accent) 20%, var(--border) 80%);
   }
 
   :global(.card.active) {
