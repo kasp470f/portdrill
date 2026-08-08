@@ -5,7 +5,7 @@ use std::path::PathBuf;
 pub fn config_dir() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("tunnel-app")
+        .join("portdrill")
 }
 
 fn config_path() -> PathBuf {

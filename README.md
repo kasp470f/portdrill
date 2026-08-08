@@ -1,4 +1,4 @@
-# TunnelApp
+# PortDrill
 
 A lightweight desktop app for managing SSH port forwarding rules. 
 <br>Define Local (`-L`), Remote (`-R`), and Dynamic (`-D`) forwards, group multiple forwards under a single SSH connection, and toggle them on or off.
@@ -24,13 +24,13 @@ Run the `.msi` installer. No additional setup needed.
 
 ### macOS
 
-Open the `.dmg` and drag TunnelApp to Applications. The app is not code-signed, so macOS Gatekeeper will block it on first launch. To fix this, open Terminal and run:
+Open the `.dmg` and drag PortDrill to Applications. The app is not code-signed, so macOS Gatekeeper will block it on first launch. To fix this, open Terminal and run:
 
 ```bash
-xattr -cr /Applications/TunnelApp.app
+xattr -cr /Applications/PortDrill.app
 ```
 
-Then open TunnelApp normally.
+Then open PortDrill normally.
 
 ### Linux
 

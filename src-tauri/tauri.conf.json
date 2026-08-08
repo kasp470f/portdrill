@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedayfor/tauri/v2/crates/tauri-cli/schema.json",
-  "productName": "TunnelApp",
+  "productName": "PortDrill",
   "version": "0.1.0",
-  "identifier": "com.tunnelapp.dev",
+  "identifier": "com.portdrill.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -27,7 +27,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "TunnelApp",
+        "title": "PortDrill",
         "minWidth": 650,
         "width": 650,
         "minHeight": 750,

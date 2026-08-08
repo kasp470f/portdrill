@@ -6,9 +6,9 @@
 <main>
   <header>
     <div class="title-row">
-      <img class="app-icon" src={appIcon} alt="TunnelApp icon" />
+      <img class="app-icon" src={appIcon} alt="PortDrill icon" />
       <div>
-        <h1>TunnelApp</h1>
+        <h1>PortDrill</h1>
         <p>SSH Port Forwarding Manager</p>
       </div>
     </div>
