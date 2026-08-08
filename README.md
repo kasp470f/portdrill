@@ -1,6 +1,7 @@
 # TunnelApp
 
-A lightweight desktop app for managing SSH port forwarding rules. Define Local (`-L`), Remote (`-R`), and Dynamic (`-D`) forwards, group multiple forwards under a single SSH connection, and toggle them on or off.
+A lightweight desktop app for managing SSH port forwarding rules. 
+<br>Define Local (`-L`), Remote (`-R`), and Dynamic (`-D`) forwards, group multiple forwards under a single SSH connection, and toggle them on or off.
 
 Built with Tauri v2, Svelte 5, and Rust. Runs on Windows, macOS, and Linux.
 
