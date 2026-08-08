@@ -8,7 +8,15 @@
   let version = $state("");
 
   onMount(async () => {
-    version = await getVersion();
+    for (let i = 0; i < 3; i++) {
+      try {
+        version = await getVersion();
+        return;
+      } catch {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+    version = "dev";
   });
 </script>
 
@@ -43,13 +51,13 @@
     margin-bottom: 32px;
   }
 
-  .title-row {
+  :global(.title-row) {
     display: flex;
     align-items: center;
     gap: 12px;
   }
 
-  .app-icon {
+  :global(.app-icon) {
     height: 52px;
     flex-shrink: 0;
   }
@@ -65,7 +73,7 @@
     color: var(--text-secondary);
   }
 
-  .version {
+  :global(.version) {
     font-size: 0.7rem;
     color: var(--text-secondary);
     opacity: 0.6;
