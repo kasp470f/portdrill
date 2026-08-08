@@ -21,8 +21,8 @@ jobs:
 
       - name: Promote unreleased to version
         run: |
-          VERSION="${GITHUB_REF_NAME}"
-          DATE=$(date +%Y-%m-%d)
+          export VERSION="${GITHUB_REF_NAME}"
+          export DATE=$(date +%Y-%m-%d)
 
           # Extract everything between "## Unreleased" and the next "## " or end of file
           # Then replace the Unreleased section with empty subsections and insert a new version section
