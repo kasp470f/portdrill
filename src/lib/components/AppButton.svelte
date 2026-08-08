@@ -24,11 +24,11 @@
     transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 
     &:hover {
-        background-color: var(--accent-hover);
+      background-color: var(--accent-hover);
     }
 
     &:active {
-        transform: translateY(1px);
+      transform: translateY(1px);
     }
 
     &.primary {
