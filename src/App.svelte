@@ -1,6 +1,15 @@
 <script lang="ts">
+  import { getVersion } from "@tauri-apps/api/app";
+  import { onMount } from "svelte";
   import RuleList from "./lib/components/RuleList.svelte";
+  import UpdateBanner from "./lib/components/UpdateBanner.svelte";
   import appIcon from "../src-tauri/icons/64x64.png";
+
+  let version = $state("");
+
+  onMount(async () => {
+    version = await getVersion();
+  });
 </script>
 
 <main>
@@ -11,8 +20,12 @@
         <h1>PortDrill</h1>
         <p>SSH Port Forwarding Manager</p>
       </div>
+      {#if version}
+        <span class="version">v{version}</span>
+      {/if}
     </div>
   </header>
+  <UpdateBanner />
   <RuleList />
 </main>
 
@@ -50,5 +63,14 @@
   :global(main header p) {
     font-size: 0.875rem;
     color: var(--text-secondary);
+  }
+
+  .version {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    margin-left: auto;
+    align-self: flex-start;
+    padding-top: 4px;
   }
 </style>
