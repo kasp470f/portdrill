@@ -3,6 +3,7 @@
   import { forwardSummary, forwardTypeLabel } from "../types";
   import { toggleRule, deleteRule } from "../stores/rules";
   import StatusDot from "./StatusDot.svelte";
+  import AppButton from "./AppButton.svelte";
 
   interface Props {
     rule: RuleWithStatus;
@@ -73,15 +74,19 @@
 {/if}
 
 {#if deleteDialogOpen}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="dialog-backdrop" onclick={closeDeleteDialog}></div>
+  <!-- svelte-ignore a11y_interactive_supports_focus -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-rule-title" onclick={(e) => e.stopPropagation()}>
     <h3 id="delete-rule-title">Delete rule?</h3>
     <p>Are you sure you want to delete <strong>{rule.name}</strong>?</p>
     <div class="dialog-actions">
-      <button class="dialog-btn secondary" onclick={closeDeleteDialog}>Cancel</button>
-      <button class="dialog-btn danger" onclick={() => { void handleDelete(); }} disabled={deleting}>
+      <AppButton type="plain" onclick={closeDeleteDialog}>Cancel</AppButton>
+      <AppButton type="danger" onclick={() => { void handleDelete(); }} disabled={deleting}>
         {deleting ? "Deleting..." : "Delete rule"}
-      </button>
+      </AppButton>
     </div>
   </div>
 {/if}
