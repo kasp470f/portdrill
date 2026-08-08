@@ -3,6 +3,7 @@
   import type { Rule, Forward, ForwardType } from "../types";
   import { emptyRule, emptyForward, toCleanRule } from "../types";
   import { createRule, updateRule } from "../stores/rules";
+  import AppButton from "./AppButton.svelte";
 
   interface Props {
     editRule?: Rule | null;
@@ -168,10 +169,12 @@
       </fieldset>
 
       <div class="form-actions">
-        <button type="button" class="btn cancel" onclick={onClose}>Cancel</button>
-        <button type="submit" class="btn save" disabled={saving}>
+        <AppButton type="plain" onclick={onClose}>
+          Cancel
+        </AppButton>
+        <AppButton type="primary" onclick={handleSubmit} disabled={saving}>
           {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Rule"}
-        </button>
+        </AppButton>
       </div>
     </form>
   </div>
@@ -400,34 +403,5 @@
     justify-content: flex-end;
     gap: 8px;
     margin-top: 8px;
-  }
-
-  .btn {
-    padding: 8px 20px;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  .btn.cancel {
-    background: var(--bg-input);
-    color: var(--text-primary);
-  }
-
-  .btn.cancel:hover {
-    background: var(--border);
-  }
-
-  .btn.save {
-    background: var(--accent);
-    color: white;
-  }
-
-  .btn.save:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-
-  .btn.save:disabled {
-    opacity: 0.5;
   }
 </style>
