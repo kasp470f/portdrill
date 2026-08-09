@@ -45,6 +45,10 @@ jobs:
             SECTION="Added"
           fi
 
+          # Export variables so child processes (node) can access them
+          export ENTRY
+          export SECTION
+
           # Insert the entry under the correct section in Unreleased only
           node <<'NODE'
           const fs = require('fs');
