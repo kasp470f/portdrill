@@ -12,11 +12,13 @@
   let progress = $state("");
   let dismissed = $state(false);
   let noUpdate = $state(false);
+  let errorMsg = $state("");
 
   async function checkForUpdate() {
     checking = true;
     noUpdate = false;
     dismissed = false;
+    errorMsg = "";
 
     try {
       const update = await check();
@@ -28,8 +30,9 @@
         noUpdate = true;
         setTimeout(() => { noUpdate = false; }, 4000);
       }
-    } catch (e) {
-      console.error("Update check failed:", e);
+    } catch (e: any) {
+      errorMsg = String(e?.message ?? e);
+      setTimeout(() => { errorMsg = ""; }, 8000);
     } finally {
       checking = false;
     }
@@ -84,6 +87,10 @@
   <div class="update-banner uptodate">
     <span class="update-text">You're on the latest version</span>
   </div>
+{:else if errorMsg}
+  <div class="update-banner error">
+    <span class="update-text">Update check failed: {errorMsg}</span>
+  </div>
 {/if}
 
 <style lang="scss">
@@ -105,6 +112,11 @@
 
   :global(.update-banner.checking) {
     opacity: 0.7;
+  }
+
+  :global(.update-banner.error) {
+    background: color-mix(in srgb, var(--danger) 8%, var(--bg-card) 92%);
+    border-color: color-mix(in srgb, var(--danger) 25%, var(--border) 75%);
   }
 
   :global(.update-banner .update-text) {
