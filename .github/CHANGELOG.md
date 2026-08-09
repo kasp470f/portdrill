@@ -3,10 +3,13 @@
 ## Unreleased
 
 ### Added
-- ([`6447736`](https://github.com/kasp470f/portdrill/commit/644773694a4077edc1eab8066b52b92d9c6da1b8)) feat: single instance + visible update errors - @kasp470f ([#11](https://github.com/kasp470f/portdrill/pull/11))
 
 ### Fixed
 
+## v0.2.5 - (2026-08-09)
+
+### Added
+- ([`6447736`](https://github.com/kasp470f/portdrill/commit/644773694a4077edc1eab8066b52b92d9c6da1b8)) feat: single instance + visible update errors - @kasp470f ([#11](https://github.com/kasp470f/portdrill/pull/11))
 ## v0.2.2 - (2026-08-09)
 
 ### Added
