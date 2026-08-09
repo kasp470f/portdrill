@@ -10,6 +10,7 @@
 
 ### Fixed
 - ([`a83ca36`](https://github.com/kasp470f/portdrill/commit/a83ca366ecf8ad3272971a821624406648356766)) fix: Improve entry insertion logic and remove duplicate entries - @kasp470f ([#12](https://github.com/kasp470f/portdrill/pull/12))
+- ([`8177e26`](https://github.com/kasp470f/portdrill/commit/8177e26443359614a40b4e5e9014baee565c12af)) fix: correct regex construction to avoid syntax error - @kasp470f ([#19](https://github.com/kasp470f/portdrill/pull/19))
 ## v0.2.5 - (2026-08-09)
 
 ### Added
