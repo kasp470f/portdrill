@@ -1,22 +1,15 @@
 <script lang="ts">
-  import { getVersion } from "@tauri-apps/api/app";
   import { onMount } from "svelte";
   import RuleList from "./lib/components/RuleList.svelte";
   import UpdateBanner from "./lib/components/UpdateBanner.svelte";
   import appIcon from "../src-tauri/icons/64x64.png";
+  import packageJson from "../package.json";
 
-  let version = $state("");
+  const fallbackVersion = packageJson.version ?? "dev";
+  let version = "";
 
   onMount(async () => {
-    for (let i = 0; i < 3; i++) {
-      try {
-        version = await getVersion();
-        return;
-      } catch {
-        await new Promise((r) => setTimeout(r, 500));
-      }
-    }
-    version = "dev";
+    version = fallbackVersion;
   });
 </script>
 
