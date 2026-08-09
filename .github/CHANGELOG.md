@@ -5,10 +5,12 @@
 ### Added
 
 ### Fixed
+- ([`714522d`](https://github.com/kasp470f/portdrill/commit/714522d8eca6c56647a2812f412deeb7056fb77c)) fix: Update version and activate updater plugin in Tauri config - @kasp470f ([#9](https://github.com/kasp470f/portdrill/pull/9))
 
 ## v0.2.1 — (2026-08-08)
 
 ### Fixed
+- ([`714522d`](https://github.com/kasp470f/portdrill/commit/714522d8eca6c56647a2812f412deeb7056fb77c)) fix: Update version and activate updater plugin in Tauri config - @kasp470f ([#9](https://github.com/kasp470f/portdrill/pull/9))
 - Fixed the deploy workflow.
 
 ## v0.2.0 — (2026-08-08)
