@@ -1,16 +1,10 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import RuleList from "./lib/components/RuleList.svelte";
   import UpdateBanner from "./lib/components/UpdateBanner.svelte";
   import appIcon from "../src-tauri/icons/64x64.png";
   import packageJson from "../package.json";
 
   const fallbackVersion = packageJson.version ?? "dev";
-  let version = "";
-
-  onMount(async () => {
-    version = fallbackVersion;
-  });
 </script>
 
 <main>
@@ -21,8 +15,8 @@
         <h1>PortDrill</h1>
         <p>SSH Port Forwarding Manager</p>
       </div>
-      {#if version}
-        <span class="version">v{version}</span>
+      {#if fallbackVersion}
+        <span class="version">v{fallbackVersion}</span>
       {/if}
     </div>
   </header>
@@ -53,6 +47,8 @@
   :global(.app-icon) {
     height: 52px;
     flex-shrink: 0;
+    user-select: none;
+    pointer-events: none;
   }
 
   :global(main header h1) {
@@ -73,5 +69,6 @@
     margin-left: auto;
     align-self: flex-start;
     padding-top: 4px;
+    user-select: none;
   }
 </style>
