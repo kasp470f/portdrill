@@ -74,7 +74,9 @@ jobs:
             }
 
             // Attempt to insert under the chosen section within Unreleased
-            const pattern = new RegExp(`(## Unreleased[\\s\\S]*?### ${section.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&'}${eol})`);
+              const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+              const sectionPattern = escapeRegExp(section);
+              const pattern = new RegExp(`(## Unreleased${eol}[\\s\\S]*?### ${sectionPattern}${eol})`);
             const match = text.match(pattern);
             let newText;
             if (match) {
