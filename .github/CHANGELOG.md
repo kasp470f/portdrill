@@ -4,9 +4,13 @@
 
 ### Added
 
+### Fixed
+
+## v0.2.8 - (2026-08-09)
+
+### Added
 - ([`f6dc4bc`](https://github.com/kasp470f/portdrill/commit/f6dc4bc46e6ea3c2f15b84a70f644623beb290ca)) changelog: improve entry insertion logic to handle line endings and prevent duplicates - @kasp470f ([#13](https://github.com/kasp470f/portdrill/pull/13))
 - ([`583d0a0`](https://github.com/kasp470f/portdrill/commit/583d0a038902a964bf5ce7fb8f52ba55bc7f62e1)) feat: enhance scrollbar styles - @kasp470f ([#14](https://github.com/kasp470f/portdrill/pull/14))
- - ([`a558ae9`](https://github.com/kasp470f/portdrill/commit/a558ae9b0a4eccae60f1c7ef27d546a67b790113)) feat: refactor version handling and simplify header - @kasp470f ([#15](https://github.com/kasp470f/portdrill/pull/15))
 
 ### Fixed
 - ([`545bf34`](https://github.com/kasp470f/portdrill/commit/545bf34ff2e9c53b4c5543eb22b734aec9de4d4b)) fix: removed the old changelog workflow - @kasp470f ([#21](https://github.com/kasp470f/portdrill/pull/21))
