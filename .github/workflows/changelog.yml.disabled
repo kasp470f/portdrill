@@ -1,7 +1,0 @@
-# Disabled: old changelog workflow
-#
-# This workflow was replaced by `changelog-v2.yml` which uses the GitHub API
-# to update `.github/CHANGELOG.md` in an idempotent way. Keeping this file
-# here (renamed with .disabled) so it can be restored quickly if needed.
-
-# Original filename: .github/workflows/changelog.yml
