@@ -3,10 +3,13 @@
 ## Unreleased
 
 ### Added
-- ([`69520a9`](https://github.com/kasp470f/portdrill/commit/69520a98940bd5928a0461e9599808f28b740ce6)) feat: check for updates from system tray - @kasp470f ([#10](https://github.com/kasp470f/portdrill/pull/10))
 
 ### Fixed
 
+## v0.2.2 - (2026-08-09)
+
+### Added
+- ([`69520a9`](https://github.com/kasp470f/portdrill/commit/69520a98940bd5928a0461e9599808f28b740ce6)) feat: check for updates from system tray - @kasp470f ([#10](https://github.com/kasp470f/portdrill/pull/10))
 ## v0.2.1 - (2026-08-08)
 
 ### Fixed
