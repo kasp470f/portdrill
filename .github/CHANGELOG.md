@@ -6,12 +6,12 @@
 
 ### Fixed
 
-## v0.2.1 - (2026-08-08)
+## v0.2.1 — (2026-08-08)
 
 ### Fixed
 - Fixed the deploy workflow.
 
-## v0.2.0 — 2026-08-08
+## v0.2.0 — (2026-08-08)
 
 ### Added
 - ([`aadd976`](https://github.com/kasp470f/portdrill/commit/aadd9769b293722fefc2fd42a38f7d7bc9b51ec7)) feat: auto-updater with version display - @kasp470f ([#8](https://github.com/kasp470f/portdrill/pull/8))
