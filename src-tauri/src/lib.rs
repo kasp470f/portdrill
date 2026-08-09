@@ -6,7 +6,8 @@ mod tunnel_manager;
 use commands::AppState;
 use tunnel_manager::TunnelManager;
 use tauri::Manager;
-use tauri::menu::{Menu, MenuItem};
+use tauri::Emitter;
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -37,8 +38,10 @@ pub fn run() {
             let has_tray = Arc::new(AtomicBool::new(false));
 
             let show = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
+            let check_update = MenuItem::with_id(app, "check_update", "Check for Updates", true, None::<&str>)?;
+            let separator = PredefinedMenuItem::separator(app)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &quit])?;
+            let menu = Menu::with_items(app, &[&show, &check_update, &separator, &quit])?;
 
             let tray_result = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -51,6 +54,13 @@ pub fn run() {
                             let _ = window.show();
                             let _ = window.set_focus();
                         }
+                    }
+                    "check_update" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                        let _ = app.emit("check-for-update", ());
                     }
                     "quit" => {
                         app.exit(0);
