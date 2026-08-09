@@ -63,14 +63,22 @@ jobs:
             process.exit(0);
           }
 
-          const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
           const sectionPattern = escapeRegExp(section);
-          const regex = new RegExp(`(## Unreleased${eol}[\s\S]*?### ${sectionPattern}${eol})`);
-          const newText = text.replace(regex, (match) => match + entry + eol);
+          const regex = new RegExp(`(## Unreleased${eol}[\\s\\S]*?### ${sectionPattern}${eol})`);
+          let newText = text.replace(regex, (match) => match + entry + eol);
 
           if (newText === text) {
-            console.error(`Failed to find Unreleased > ${section}`);
-            process.exit(1);
+            // Fallback: try inserting the section header and entry directly after '## Unreleased'
+            const unreleasedRegex = new RegExp(`(## Unreleased${eol})`);
+            if (unreleasedRegex.test(text)) {
+              newText = text.replace(unreleasedRegex, `$1${eol}### ${section}${eol}${entry}${eol}`);
+              console.log(`Fallback: inserted ${section} under Unreleased`);
+            } else {
+              // Ultimate fallback: prepend an Unreleased section with the entry
+              newText = `## Unreleased${eol}${eol}### ${section}${eol}${entry}${eol}${text}`;
+              console.log('Fallback: prepended Unreleased section and entry');
+            }
           }
 
           fs.writeFileSync(path, newText, 'utf8');
