@@ -53,13 +53,16 @@ jobs:
           const entry = process.env.ENTRY;
 
           const text = fs.readFileSync(path, 'utf8');
+          const eol = text.includes('\r\n') ? '\r\n' : '\n';
           if (text.includes(entry)) {
             console.log('Changelog entry already exists, skipping');
             process.exit(0);
           }
 
-          const regex = new RegExp(`(## Unreleased\\n[\\s\\S]*?### ${section}\\n)`);
-          const newText = text.replace(regex, (match) => match + entry + '\n');
+          const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const sectionPattern = escapeRegExp(section);
+          const regex = new RegExp(`(## Unreleased${eol}[\s\S]*?### ${sectionPattern}${eol})`);
+          const newText = text.replace(regex, (match) => match + entry + eol);
 
           if (newText === text) {
             console.error(`Failed to find Unreleased > ${section}`);
