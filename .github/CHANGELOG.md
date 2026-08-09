@@ -3,12 +3,14 @@
 ## Unreleased
 
 ### Added
+- ([`6447736`](https://github.com/kasp470f/portdrill/commit/644773694a4077edc1eab8066b52b92d9c6da1b8)) feat: single instance + visible update errors - @kasp470f ([#11](https://github.com/kasp470f/portdrill/pull/11))
 
 ### Fixed
 
 ## v0.2.2 - (2026-08-09)
 
 ### Added
+- ([`6447736`](https://github.com/kasp470f/portdrill/commit/644773694a4077edc1eab8066b52b92d9c6da1b8)) feat: single instance + visible update errors - @kasp470f ([#11](https://github.com/kasp470f/portdrill/pull/11))
 - ([`69520a9`](https://github.com/kasp470f/portdrill/commit/69520a98940bd5928a0461e9599808f28b740ce6)) feat: check for updates from system tray - @kasp470f ([#10](https://github.com/kasp470f/portdrill/pull/10))
 ## v0.2.1 - (2026-08-08)
 
@@ -19,6 +21,7 @@
 ## v0.2.0 - (2026-08-08)
 
 ### Added
+- ([`6447736`](https://github.com/kasp470f/portdrill/commit/644773694a4077edc1eab8066b52b92d9c6da1b8)) feat: single instance + visible update errors - @kasp470f ([#11](https://github.com/kasp470f/portdrill/pull/11))
 - ([`69520a9`](https://github.com/kasp470f/portdrill/commit/69520a98940bd5928a0461e9599808f28b740ce6)) feat: check for updates from system tray - @kasp470f ([#10](https://github.com/kasp470f/portdrill/pull/10))
 - ([`aadd976`](https://github.com/kasp470f/portdrill/commit/aadd9769b293722fefc2fd42a38f7d7bc9b51ec7)) feat: auto-updater with version display - @kasp470f ([#8](https://github.com/kasp470f/portdrill/pull/8))
 - ([`4338e4d`](https://github.com/kasp470f/portdrill/commit/4338e4dda0fcc019fc814b5c97d7346ca2620f6b)) feat: added scss and made some ux changes to help improve layout - @kasp470f ([#7](https://github.com/kasp470f/portdrill/pull/7))
