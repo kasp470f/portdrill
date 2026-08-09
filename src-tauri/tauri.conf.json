@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedayfor/tauri/v2/crates/tauri-cli/schema.json",
   "productName": "PortDrill",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "identifier": "com.portdrill.app",
   "build": {
     "frontendDist": "../dist",
