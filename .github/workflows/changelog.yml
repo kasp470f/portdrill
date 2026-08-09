@@ -20,6 +20,11 @@ jobs:
           ref: master
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Categorize and update changelog
         run: |
           PR_TITLE="${{ github.event.pull_request.title }}"
@@ -40,12 +45,29 @@ jobs:
             SECTION="Added"
           fi
 
-          # Insert the entry under the correct section in Unreleased
-          if [ "$SECTION" = "Added" ]; then
-            sed -i "/^### Added$/a\\${ENTRY}" .github/CHANGELOG.md
-          else
-            sed -i "/^### Fixed$/a\\${ENTRY}" .github/CHANGELOG.md
-          fi
+          # Insert the entry under the correct section in Unreleased only
+          node <<'NODE'
+          const fs = require('fs');
+          const path = '.github/CHANGELOG.md';
+          const section = process.env.SECTION;
+          const entry = process.env.ENTRY;
+
+          const text = fs.readFileSync(path, 'utf8');
+          if (text.includes(entry)) {
+            console.log('Changelog entry already exists, skipping');
+            process.exit(0);
+          }
+
+          const regex = new RegExp(`(## Unreleased\\n[\\s\\S]*?### ${section}\\n)`);
+          const newText = text.replace(regex, (match) => match + entry + '\n');
+
+          if (newText === text) {
+            console.error(`Failed to find Unreleased > ${section}`);
+            process.exit(1);
+          }
+
+          fs.writeFileSync(path, newText, 'utf8');
+          NODE
 
       - name: Commit changelog
         run: |
