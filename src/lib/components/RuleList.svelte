@@ -60,12 +60,13 @@
   <RuleForm editRule={editTarget} onClose={closeForm} />
 {/if}
 
-<style>
+<style lang="scss">
   :global(.rule-list) {
     display: flex;
     flex-direction: column;
     gap: 16px;
     flex: 1;
+    overflow: hidden;
   }
 
   :global(.rule-list .toolbar) {
@@ -79,19 +80,6 @@
     color: var(--text-secondary);
   }
 
-  :global(.rule-list .btn-add) {
-    padding: 8px 18px;
-    background: var(--accent);
-    color: white;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  :global(.rule-list .btn-add:hover) {
-    background: var(--accent-hover);
-  }
-
   :global(.rule-list .rules-container) {
     padding: 12px;
     border: 1px solid var(--border);
@@ -99,6 +87,20 @@
     flex: 1;
     height: 100%;
     background-color: color-mix(in srgb, var(--bg-card) 20%, transparent 80%);
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      border-radius: 0 var(--radius) var(--radius) 0;
+      overflow: hidden;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
   }
 
   :global(.rule-list .grid) {
