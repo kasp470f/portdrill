@@ -16,6 +16,7 @@
     margin: 0 auto;
     padding: 28px 48px 40px;
     min-height: 100vh;
+    max-height: calc(100vh - (28px + 40px));
     display: flex;
     flex-direction: column;
   }
