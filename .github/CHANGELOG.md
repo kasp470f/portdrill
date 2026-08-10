@@ -5,6 +5,7 @@
 ### Added
 
 ### Fixed
+- ([`061a43c`](https://github.com/kasp470f/portdrill/commit/061a43c03ac4f9197da8a96e9374c345ad913844)) fix: resolve overflow issues in RuleList component and adjust styles - @kasp470f ([#26](https://github.com/kasp470f/portdrill/pull/26))
 
 ## v0.2.8 - (2026-08-09)
 
