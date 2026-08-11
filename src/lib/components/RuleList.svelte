@@ -38,21 +38,23 @@
     <AppButton onclick={openNew}>+ Add Rule</AppButton>
   </div>
 
-  <div class="rules-container">
-    {#if $loading}
-      <div class="empty">Loading...</div>
-    {:else if $rules.length === 0}
-      <div class="empty">
-        <p>No forwarding rules yet.</p>
-        <p class="hint">Click "Add Rule" to create your first SSH tunnel.</p>
-      </div>
-    {:else}
-      <div class="grid">
-        {#each $rules as rule (rule.id)}
-          <RuleCard {rule} onEdit={openEdit} />
-        {/each}
-      </div>
-    {/if}
+  <div class="rules-wrapper">
+    <div class="rules-container">
+      {#if $loading}
+        <div class="empty">Loading...</div>
+      {:else if $rules.length === 0}
+        <div class="empty">
+          <p>No forwarding rules yet.</p>
+          <p class="hint">Click "Add Rule" to create your first SSH tunnel.</p>
+        </div>
+      {:else}
+        <div class="grid">
+          {#each $rules as rule (rule.id)}
+            <RuleCard {rule} onEdit={openEdit} />
+          {/each}
+        </div>
+      {/if}
+    </div>
   </div>
 </div>
 
@@ -80,26 +82,33 @@
     color: var(--text-secondary);
   }
 
-  :global(.rule-list .rules-container) {
-    padding: 12px;
+  :global(.rule-list .rules-wrapper) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    padding: 12px 8px 12px 16px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    flex: 1;
-    height: 100%;
     background-color: color-mix(in srgb, var(--bg-card) 20%, transparent 80%);
+  }
+
+  :global(.rule-list .rules-container) {
+    height: 100%;
     overflow-y: auto;
+    padding-right: 8px;
 
     &::-webkit-scrollbar {
-      width: 8px;
+      width: 6px;
     }
 
     &::-webkit-scrollbar-track {
-      border-radius: 0 var(--radius) var(--radius) 0;
+      border-radius: var(--radius);
       overflow: hidden;
     }
 
     &::-webkit-scrollbar-thumb {
-      border-radius: 0 var(--radius) var(--radius) 0;
+      border-radius: var(--radius);
     }
   }
 
