@@ -7,6 +7,7 @@
 - ([`4018f63`](https://github.com/kasp470f/portdrill/commit/4018f63240506ff72b6cb57afcc1467d8fd61f51)) feat: import rule from SSH command - @kasp470f ([#27](https://github.com/kasp470f/portdrill/pull/27))
 
 ### Fixed
+- ([`5949eb4`](https://github.com/kasp470f/portdrill/commit/5949eb4ae6082602e2e500d1ce6a686b0a4d6ad7)) fix: improve scrollbar UX and structure in RuleList component - @kasp470f ([#37](https://github.com/kasp470f/portdrill/pull/37))
 
 ## v0.2.9 - (2026-08-11)
 
