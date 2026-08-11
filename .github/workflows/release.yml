@@ -107,7 +107,6 @@ jobs:
           match = re.search(pattern, content, re.DOTALL)
 
           lines = []
-          contributors = set()
 
           if match:
               section = match.group(1).strip()
@@ -120,10 +119,6 @@ jobs:
                       grouped[current_header] = []
                   elif line.startswith("- ") and current_header:
                       grouped[current_header].append(line)
-                      # Extract @author
-                      author_match = re.search(r"- @(\S+)", line)
-                      if author_match:
-                          contributors.add(author_match.group(1))
 
               for header, items in grouped.items():
                   if items:
@@ -133,12 +128,6 @@ jobs:
 
           if not lines:
               lines.append("No changelog entries for this release.")
-              lines.append("")
-
-          if contributors:
-              lines.append("## Contributors")
-              for c in sorted(contributors):
-                  lines.append(f"- @{c}")
               lines.append("")
 
           lines.append("---")
