@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`25c82a8`](https://github.com/kasp470f/portdrill/commit/25c82a8032cb8170dabb8c3a89fb8410b250407f)) feat: include changelog and contributors in release body - @kasp470f ([#28](https://github.com/kasp470f/portdrill/pull/28))
 - ([`4018f63`](https://github.com/kasp470f/portdrill/commit/4018f63240506ff72b6cb57afcc1467d8fd61f51)) feat: import rule from SSH command - @kasp470f ([#27](https://github.com/kasp470f/portdrill/pull/27))
 
 ### Fixed
