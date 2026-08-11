@@ -3,6 +3,7 @@
   import type { Rule, Forward, ForwardType } from "../types";
   import { emptyRule, emptyForward, toCleanRule } from "../types";
   import { createRule, updateRule } from "../stores/rules";
+  import { parseSshCommand } from "../sshParser";
   import AppButton from "./AppButton.svelte";
 
   interface Props {
@@ -17,6 +18,10 @@
   let form: Rule = $state(editRule != null ? toCleanRule(editRule) : emptyRule());
   let saving = $state(false);
   let error = $state("");
+
+  let importMode = $state(false);
+  let sshCommand = $state("");
+  let importErrors = $state<string[]>([]);
 
   function addForward() {
     form.forwards = [...form.forwards, emptyForward()];
@@ -39,6 +44,21 @@
     if (selected) {
       form.sshKeyPath = selected;
     }
+  }
+
+  function handleImport() {
+    const result = parseSshCommand(sshCommand);
+    if (result.errors.length > 0) {
+      importErrors = result.errors;
+      return;
+    }
+    form.sshHost = result.rule.sshHost;
+    form.sshPort = result.rule.sshPort;
+    form.sshUser = result.rule.sshUser;
+    form.sshKeyPath = result.rule.sshKeyPath;
+    form.forwards = result.rule.forwards;
+    importErrors = [];
+    importMode = false;
   }
 
   async function handleSubmit() {
@@ -64,7 +84,41 @@
 <div class="form-overlay" role="presentation" onclick={onClose} onkeydown={(e) => { if (e.key === "Escape") onClose(); }}>
   <!-- svelte-ignore a11y_no_static_element_interactions, a11y_interactive_supports_focus, a11y_click_events_have_key_events -->
   <div class="form-modal" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-    <h2>{isEdit ? "Edit Rule" : "New Rule"}</h2>
+    <div class="modal-header">
+      <h2>{importMode ? "Import SSH Command" : isEdit ? "Edit Rule" : "New Rule"}</h2>
+      {#if !isEdit}
+        <button type="button" class="import-toggle" onclick={() => { importMode = !importMode; importErrors = []; }}>
+          {importMode ? "Manual entry" : "Import from command"}
+        </button>
+      {/if}
+    </div>
+
+    {#if importMode}
+      <div class="import-view">
+        <p class="import-hint">Paste an SSH command to auto-fill the rule fields</p>
+        <textarea
+          class="import-textarea"
+          bind:value={sshCommand}
+          placeholder="ssh -N -p 30022 -L 3004:host:80 -L 2222:host:22 user@server"
+          rows="4"
+        ></textarea>
+        {#if importErrors.length > 0}
+          <div class="error-banner">
+            {#each importErrors as err}
+              <div>{err}</div>
+            {/each}
+          </div>
+        {/if}
+        <div class="form-actions">
+          <AppButton type="plain" onclick={() => { importMode = false; importErrors = []; }}>
+            Cancel
+          </AppButton>
+          <AppButton type="primary" onclick={handleImport}>
+            Convert
+          </AppButton>
+        </div>
+      </div>
+    {:else}
 
     {#if error}
       <div class="error-banner">{error}</div>
@@ -177,6 +231,7 @@
         </AppButton>
       </div>
     </form>
+    {/if}
   </div>
 </div>
 
@@ -203,9 +258,61 @@
     margin: auto 0;
   }
 
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
   h2 {
     font-size: 1.25rem;
-    margin-bottom: 16px;
+  }
+
+  .import-toggle {
+    font-size: 0.75rem;
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+
+  .import-toggle:hover {
+    background: rgba(108, 140, 255, 0.1);
+  }
+
+  .import-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .import-hint {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+
+  .import-textarea {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  .import-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .import-textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.5;
   }
 
   .error-banner {
