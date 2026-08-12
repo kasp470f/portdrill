@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { RuleWithStatus } from "../types";
-  import { rules, loading, fetchRules, listenForStatusChanges, reorderRules } from "../stores/rules";
+  import { rules, loading, fetchRules, listenForStatusChanges, reorderRules, duplicateRule } from "../stores/rules";
   import RuleCard from "./RuleCard.svelte";
   import RuleForm from "./RuleForm.svelte";
   import AppButton from "./AppButton.svelte";
@@ -128,7 +128,7 @@
                 <span class="grip">⠿</span>
               </div>
               <div class="drag-content">
-                <RuleCard {rule} onEdit={openEdit} />
+                <RuleCard {rule} onEdit={openEdit} onDuplicate={(r) => duplicateRule(r)} />
               </div>
             </div>
           {/each}

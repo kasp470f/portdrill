@@ -8,9 +8,10 @@
   interface Props {
     rule: RuleWithStatus;
     onEdit: (rule: RuleWithStatus) => void;
+    onDuplicate: (rule: RuleWithStatus) => void;
   }
 
-  let { rule, onEdit }: Props = $props();
+  let { rule, onEdit, onDuplicate }: Props = $props();
   let toggling = $state(false);
   let deleting = $state(false);
   let menuOpen = $state(false);
@@ -131,6 +132,9 @@
             </button>
             <button class="menu-item" onclick={() => { onEdit(rule); closeMenu(); }} disabled={isActive}>
               Edit rule
+            </button>
+            <button class="menu-item" onclick={() => { onDuplicate(rule); closeMenu(); }}>
+              Duplicate rule
             </button>
             <button class="menu-item danger" onclick={openDeleteDialog} disabled={isActive}>
               Delete rule
