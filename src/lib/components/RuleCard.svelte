@@ -236,7 +236,7 @@
   }
 
   :global(.card .type-badge) {
-    width: 26px;
+    width: 20px;
     height: 20px;
     border-radius: 4px;
     display: flex;
