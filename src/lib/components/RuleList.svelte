@@ -120,16 +120,12 @@
               class="drag-item"
               style={dragState?.fromIndex === i ? "opacity: 0.3;" : ""}
             >
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div
-                class="drag-handle"
-                onmousedown={(e) => { e.preventDefault(); startDrag(i); }}
-              >
-                <span class="grip">⠿</span>
-              </div>
-              <div class="drag-content">
-                <RuleCard {rule} onEdit={openEdit} onDuplicate={(r) => duplicateRule(r)} />
-              </div>
+              <RuleCard
+                {rule}
+                onEdit={openEdit}
+                onDuplicate={(r) => duplicateRule(r)}
+                onGripDown={() => startDrag(i)}
+              />
             </div>
           {/each}
           {#if dragState && dragState.dropIndex === $rules.length}
@@ -170,7 +166,7 @@
     flex-direction: column;
     flex: 1;
     overflow: hidden;
-    padding: 12px 8px 12px 4px;
+    padding: 12px 8px 12px 12px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background-color: color-mix(in srgb, var(--bg-card) 20%, transparent 80%);
@@ -203,40 +199,7 @@
   }
 
   :global(.rule-list .drag-item) {
-    display: flex;
-    align-items: stretch;
     transition: opacity 0.1s;
-  }
-
-  :global(.rule-list .drag-content) {
-    flex: 1;
-    min-width: 0;
-  }
-
-  :global(.rule-list .drag-handle) {
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-    cursor: grab;
-    color: var(--text-secondary);
-    opacity: 0.3;
-    transition: opacity 0.15s;
-    user-select: none;
-    flex-shrink: 0;
-  }
-
-  :global(.rule-list .drag-handle:hover) {
-    opacity: 0.8;
-  }
-
-  :global(.rule-list .drag-handle:active) {
-    cursor: grabbing;
-    opacity: 1;
-  }
-
-  :global(.rule-list .grip) {
-    font-size: 1rem;
-    line-height: 1;
   }
 
   :global(.rule-list .empty) {
