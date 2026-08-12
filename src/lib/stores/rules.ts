@@ -33,7 +33,13 @@ export async function deleteRule(id: string): Promise<void> {
 
 export async function toggleRule(id: string): Promise<boolean> {
   const connected = await invoke<boolean>("toggle_rule", { id });
-  await fetchRules();
+  rules.update((current) =>
+    current.map((r) =>
+      r.id === id
+        ? { ...r, tunnelStatus: connected ? { status: "connected" as const } : { status: "disconnected" as const } }
+        : r,
+    ),
+  );
   return connected;
 }
 
