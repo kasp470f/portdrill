@@ -39,6 +39,7 @@ pub fn run() {
             commands::delete_rule,
             commands::toggle_rule,
             commands::get_tunnel_status,
+            commands::reorder_rules,
         ])
         .setup(|app| {
             let has_tray = Arc::new(AtomicBool::new(false));
