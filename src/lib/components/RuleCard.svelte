@@ -9,9 +9,10 @@
     rule: RuleWithStatus;
     onEdit: (rule: RuleWithStatus) => void;
     onDuplicate: (rule: RuleWithStatus) => void;
+    onGripDown?: (e: MouseEvent) => void;
   }
 
-  let { rule, onEdit, onDuplicate }: Props = $props();
+  let { rule, onEdit, onDuplicate, onGripDown }: Props = $props();
   let toggling = $state(false);
   let deleting = $state(false);
   let menuOpen = $state(false);
@@ -94,6 +95,12 @@
 
 <div class="card" class:active={isActive} class:error={rule.tunnelStatus.status === "error"}>
   <div class="card-row">
+    {#if onGripDown}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="drag-grip" onmousedown={(e) => { e.preventDefault(); onGripDown(e); }}>
+        <span>⠿</span>
+      </div>
+    {/if}
     <div class="card-left">
       <div class="badges">
         {#each rule.forwards as fwd}
@@ -180,6 +187,28 @@
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+
+  :global(.card .drag-grip) {
+    display: flex;
+    align-items: center;
+    cursor: grab;
+    color: var(--text-secondary);
+    opacity: 0.25;
+    transition: opacity 0.15s;
+    user-select: none;
+    font-size: 1rem;
+    line-height: 1;
+    margin-left: -6px;
+  }
+
+  :global(.card .drag-grip:hover) {
+    opacity: 0.7;
+  }
+
+  :global(.card .drag-grip:active) {
+    cursor: grabbing;
+    opacity: 1;
   }
 
   :global(.card .card-left) {
