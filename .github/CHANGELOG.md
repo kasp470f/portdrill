@@ -5,6 +5,7 @@
 ### Added
 
 ### Fixed
+- ([`1718c90`](https://github.com/kasp470f/portdrill/commit/1718c90fc08ffeb2925435abb7a09b71fb2fde6f)) fix: hide console window when spawning ssh on Windows - @kasp470f ([#39](https://github.com/kasp470f/portdrill/pull/39))
 
 ## v0.2.11 - (2026-08-11)
 
