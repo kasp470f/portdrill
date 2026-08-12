@@ -6,6 +6,7 @@
 - ([`13816e8`](https://github.com/kasp470f/portdrill/commit/13816e8077ec2bf60b7ee7870c3e2632733dfa75)) feat: drag to reorder rules - @kasp470f ([#41](https://github.com/kasp470f/portdrill/pull/41))
 
 ### Fixed
+- ([`20226fc`](https://github.com/kasp470f/portdrill/commit/20226fcf9a5c80a5f93fa88af506660fddd9e3dc)) fix: prevent scroll reset when toggling a rule - @kasp470f ([#42](https://github.com/kasp470f/portdrill/pull/42))
 
 ## v0.2.12 - (2026-08-12)
 
