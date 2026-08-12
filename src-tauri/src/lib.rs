@@ -12,6 +12,20 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+#[cfg(target_os = "macos")]
+mod macos {
+    use objc::runtime::Object;
+    use objc::{class, msg_send, sel, sel_impl};
+
+    pub fn set_dock_visible(visible: bool) {
+        unsafe {
+            let ns_app: *mut Object = msg_send![class!(NSApplication), sharedApplication];
+            let policy: i32 = if visible { 0 } else { 1 }; // 0 = regular, 1 = accessory
+            let _: () = msg_send![ns_app, setActivationPolicy: policy];
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let rules = config::load_rules();
@@ -57,12 +71,22 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => {
+                        // Ensure Dock icon is visible when showing the window on macOS
+                        #[cfg(target_os = "macos")]
+                        {
+                            macos::set_dock_visible(true);
+                        }
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
                             let _ = window.set_focus();
                         }
                     }
                     "check_update" => {
+                        // Ensure Dock icon is visible when showing the window on macOS
+                        #[cfg(target_os = "macos")]
+                        {
+                            macos::set_dock_visible(true);
+                        }
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
                             let _ = window.set_focus();
@@ -82,6 +106,11 @@ pub fn run() {
                     } = event
                     {
                         let app = tray.app_handle();
+                        // Ensure Dock icon is visible when showing the window on macOS
+                        #[cfg(target_os = "macos")]
+                        {
+                            macos::set_dock_visible(true);
+                        }
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
                             let _ = window.set_focus();
@@ -110,7 +139,12 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let has_tray: tauri::State<Arc<AtomicBool>> = window.state();
                 if has_tray.load(Ordering::SeqCst) {
+                    // Hide the window instead of closing and hide Dock on macOS
                     let _ = window.hide();
+                    #[cfg(target_os = "macos")]
+                    {
+                        macos::set_dock_visible(false);
+                    }
                     api.prevent_close();
                 }
             }
