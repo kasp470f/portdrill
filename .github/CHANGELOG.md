@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`13816e8`](https://github.com/kasp470f/portdrill/commit/13816e8077ec2bf60b7ee7870c3e2632733dfa75)) feat: drag to reorder rules - @kasp470f ([#41](https://github.com/kasp470f/portdrill/pull/41))
 
 ### Fixed
 
