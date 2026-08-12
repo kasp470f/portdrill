@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`7d0204b`](https://github.com/kasp470f/portdrill/commit/7d0204b4699c1993c1a2547da35ea8db5f201622)) chore: remove debug logs and enhance tokenization in SSH command parser - @kasp470f ([#48](https://github.com/kasp470f/portdrill/pull/48))
 
 ### Fixed
 - ([`d2bc787`](https://github.com/kasp470f/portdrill/commit/d2bc78792c2e8702bb7441b105369b9e66edae84)) fix: move drag handle inside the rule card - @kasp470f ([#46](https://github.com/kasp470f/portdrill/pull/46))
