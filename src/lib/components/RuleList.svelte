@@ -166,7 +166,7 @@
     flex-direction: column;
     flex: 1;
     overflow: hidden;
-    padding: 12px 8px 12px 4px;
+    padding: 12px 8px 12px 12px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background-color: color-mix(in srgb, var(--bg-card) 20%, transparent 80%);
