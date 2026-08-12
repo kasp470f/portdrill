@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`1ceb323`](https://github.com/kasp470f/portdrill/commit/1ceb3237c85b98a62c459ebe10a53e927187be45)) feat: implement macOS dock visibility control in the application - @kasp470f ([#51](https://github.com/kasp470f/portdrill/pull/51))
 - ([`7d0204b`](https://github.com/kasp470f/portdrill/commit/7d0204b4699c1993c1a2547da35ea8db5f201622)) chore: remove debug logs and enhance tokenization in SSH command parser - @kasp470f ([#48](https://github.com/kasp470f/portdrill/pull/48))
 
 ### Fixed
