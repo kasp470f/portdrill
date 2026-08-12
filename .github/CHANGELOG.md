@@ -5,6 +5,7 @@
 ### Added
 
 ### Fixed
+- ([`d2bc787`](https://github.com/kasp470f/portdrill/commit/d2bc78792c2e8702bb7441b105369b9e66edae84)) fix: move drag handle inside the rule card - @kasp470f ([#46](https://github.com/kasp470f/portdrill/pull/46))
 
 ## v0.2.13 - (2026-08-12)
 
