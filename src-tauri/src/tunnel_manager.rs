@@ -45,11 +45,18 @@ impl TunnelManager {
             cmd.arg(fwd.flag()).arg(fwd.spec());
         }
 
-        let child = cmd
-            .arg(format!("{}@{}", rule.ssh_user, rule.ssh_host))
+        cmd.arg(format!("{}@{}", rule.ssh_user, rule.ssh_host))
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        let child = cmd
             .spawn()
             .map_err(|e| format!("Failed to spawn ssh: {e}"))?;
 
