@@ -31,6 +31,14 @@ export async function reorderRules(ids: string[]): Promise<void> {
   await fetchRules();
 }
 
+export async function duplicateRule(rule: Rule): Promise<Rule> {
+  const clone = toCleanRule(rule);
+  clone.name = `${clone.name} (copy)`;
+  const created = await invoke<Rule>("create_rule", { rule: clone });
+  await fetchRules();
+  return created;
+}
+
 export async function deleteRule(id: string): Promise<void> {
   await invoke("delete_rule", { id });
   await fetchRules();
