@@ -17,8 +17,6 @@ export function parseSshCommand(command: string): ParseResult {
   }
 
   const tokens = tokenize(trimmed);
-  console.log("Tokens:", tokens);
-  console.log(trimmed);
 
   if (tokens.length === 0 || tokens[0] !== "ssh") {
     errors.push("Command must start with 'ssh'");
@@ -103,7 +101,7 @@ function tokenize(command: string): string[] {
       inSingle = !inSingle;
     } else if (ch === '"' && !inSingle) {
       inDouble = !inDouble;
-    } else if ((ch === " " || ch === "\t" || ch === "\n" || ch === "\r") && !inSingle && !inDouble) {
+    } else if ((ch === " " || ch === "\t" || ch === "\n" || ch === "\r" || ch === "\\") && !inSingle && !inDouble) {
       if (current) {
         tokens.push(current);
         current = "";
