@@ -26,6 +26,11 @@ export async function updateRule(rule: Rule): Promise<Rule> {
   return updated;
 }
 
+export async function reorderRules(ids: string[]): Promise<void> {
+  await invoke("reorder_rules", { ids });
+  await fetchRules();
+}
+
 export async function deleteRule(id: string): Promise<void> {
   await invoke("delete_rule", { id });
   await fetchRules();

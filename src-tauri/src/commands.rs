@@ -83,3 +83,20 @@ pub fn toggle_rule(state: State<AppState>, id: String, app: AppHandle) -> Result
 pub fn get_tunnel_status(state: State<AppState>, id: String) -> TunnelStatus {
     state.tunnel_manager.get_status(&id)
 }
+
+#[tauri::command]
+pub fn reorder_rules(state: State<AppState>, ids: Vec<String>) -> Result<(), String> {
+    let mut rules = state.rules.lock().map_err(|e| e.to_string())?;
+    let mut reordered: Vec<Rule> = Vec::with_capacity(ids.len());
+    for id in &ids {
+        if let Some(rule) = rules.iter().find(|r| &r.id == id) {
+            reordered.push(rule.clone());
+        }
+    }
+    if reordered.len() != rules.len() {
+        return Err("ID list doesn't match existing rules".into());
+    }
+    *rules = reordered;
+    config::save_rules(&rules)?;
+    Ok(())
+}
