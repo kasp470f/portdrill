@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import type { RuleWithStatus } from "../types";
-  import { forwardSummary, forwardTypeLabel } from "../types";
+  import { forwardSummary, forwardTypeLabel, toCleanRule } from "../types";
+  import { formatSshCommand } from "../sshParser";
   import { toggleRule, deleteRule } from "../stores/rules";
   import StatusDot from "./StatusDot.svelte";
   import AppButton from "./AppButton.svelte";
@@ -54,6 +56,15 @@
     } finally {
       deleting = false;
     }
+  }
+
+  async function handleCopyCommand() {
+    try {
+      await writeText(formatSshCommand(toCleanRule(rule)));
+    } catch (e) {
+      console.error("Copy failed:", e);
+    }
+    closeMenu();
   }
 
   function closeMenu() {
@@ -142,6 +153,9 @@
             </button>
             <button class="menu-item" onclick={() => { onDuplicate(rule); closeMenu(); }}>
               Duplicate rule
+            </button>
+            <button class="menu-item" onclick={() => { void handleCopyCommand(); }}>
+              Copy as SSH command
             </button>
             <button class="menu-item danger" onclick={openDeleteDialog} disabled={isActive}>
               Delete rule

@@ -200,6 +200,40 @@ function parseDynamicSpec(spec: string, errors: string[]): Forward | null {
   };
 }
 
+export function formatSshCommand(rule: Rule): string {
+  const parts = ["ssh", "-N"];
+
+  if (rule.sshPort && rule.sshPort !== 22) {
+    parts.push("-p", String(rule.sshPort));
+  }
+
+  if (rule.sshKeyPath) {
+    parts.push("-i", rule.sshKeyPath);
+  }
+
+  for (const fwd of rule.forwards) {
+    parts.push(...formatForwardArgs(fwd));
+  }
+
+  parts.push(rule.sshUser ? `${rule.sshUser}@${rule.sshHost}` : rule.sshHost);
+
+  return parts.join(" ");
+}
+
+function formatForwardArgs(fwd: Forward): string[] {
+  const bindPrefix =
+    fwd.bindAddress && fwd.bindAddress !== "127.0.0.1" ? `${fwd.bindAddress}:` : "";
+
+  switch (fwd.forwardType) {
+    case "local":
+      return ["-L", `${bindPrefix}${fwd.localPort ?? ""}:${fwd.destinationHost ?? ""}:${fwd.destinationPort ?? ""}`];
+    case "remote":
+      return ["-R", `${bindPrefix}${fwd.remotePort ?? ""}:${fwd.destinationHost ?? ""}:${fwd.destinationPort ?? ""}`];
+    case "dynamic":
+      return ["-D", `${bindPrefix}${fwd.localPort ?? ""}`];
+  }
+}
+
 function parseUserHost(
   token: string,
 ): { user: string; host: string } | null {
