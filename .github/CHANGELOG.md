@@ -5,6 +5,7 @@
 ### Added
 
 ### Fixed
+- ([`43bd7a7`](https://github.com/kasp470f/portdrill/commit/43bd7a7827f2bc9b49ec7bf87a0fcb070ed0b9b4)) fix: Improve drag handle visibility and enhance drag-and-drop intuitiveness - @kasp470f ([#53](https://github.com/kasp470f/portdrill/pull/53))
 
 ## v0.2.14 - (2026-08-12)
 
