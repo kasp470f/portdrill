@@ -40,6 +40,12 @@
     dragState = { fromIndex: index, dropIndex: null };
   }
 
+  // Dropping right before or right after the dragged item's own position
+  // is a no-op (it lands back where it started), so don't highlight those slots.
+  function isTrivialDrop(index: number, fromIndex: number): boolean {
+    return index === fromIndex || index === fromIndex + 1;
+  }
+
   function updateDrop(e: MouseEvent) {
     if (!dragState || !gridEl) return;
     const items = gridEl.querySelectorAll(".drag-item");
@@ -113,9 +119,14 @@
       {:else}
         <div class="grid" bind:this={gridEl}>
           {#each $rules as rule, i (rule.id)}
-            {#if dragState && dragState.dropIndex === i && dragState.fromIndex !== i}
-              <div style="height: 3px; background: var(--accent); border-radius: 2px;"></div>
-            {/if}
+            <div
+              class="drag-slot"
+              class:visible={dragState !== null &&
+                dragState.dropIndex === i &&
+                !isTrivialDrop(i, dragState.fromIndex)}
+            >
+              <div class="drag-line"></div>
+            </div>
             <div
               class="drag-item"
               style={dragState?.fromIndex === i ? "opacity: 0.3;" : ""}
@@ -128,9 +139,14 @@
               />
             </div>
           {/each}
-          {#if dragState && dragState.dropIndex === $rules.length}
-            <div style="height: 3px; background: var(--accent); border-radius: 2px;"></div>
-          {/if}
+          <div
+            class="drag-slot"
+            class:visible={dragState !== null &&
+              dragState.dropIndex === $rules.length &&
+              !isTrivialDrop($rules.length, dragState.fromIndex)}
+          >
+            <div class="drag-line"></div>
+          </div>
         </div>
       {/if}
     </div>
@@ -166,7 +182,7 @@
     flex-direction: column;
     flex: 1;
     overflow: hidden;
-    padding: 12px 8px 12px 12px;
+    padding: 4px 8px 4px 12px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background-color: color-mix(in srgb, var(--bg-card) 20%, transparent 80%);
@@ -177,6 +193,7 @@
     height: 100%;
     overflow-y: auto;
     padding-right: 8px;
+    position: relative;
 
     &::-webkit-scrollbar {
       width: 6px;
@@ -185,6 +202,7 @@
     &::-webkit-scrollbar-track {
       border-radius: var(--radius);
       overflow: hidden;
+      margin: 12px 0;
     }
 
     &::-webkit-scrollbar-thumb {
@@ -195,7 +213,6 @@
   :global(.rule-list .grid) {
     display: flex;
     flex-direction: column;
-    gap: 12px;
   }
 
   :global(.rule-list .drag-item) {
@@ -212,5 +229,24 @@
     font-size: 0.875rem;
     margin-top: 8px;
     opacity: 0.7;
+  }
+
+  :global(.rule-list .drag-slot) {
+    height: 12px;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  :global(.rule-list .drag-slot .drag-line) {
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: transparent;
+    transition: background-color 0.1s;
+  }
+
+  :global(.rule-list .drag-slot.visible .drag-line) {
+    background: var(--accent);
   }
 </style>
