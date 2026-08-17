@@ -20,6 +20,18 @@
   let menuOpen = $state(false);
   let deleteDialogOpen = $state(false);
   let showForwards = $state(false);
+  let menuAnchorEl: HTMLDivElement | undefined = $state();
+
+  $effect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuAnchorEl && !menuAnchorEl.contains(e.target as Node)) {
+        closeMenu();
+      }
+    }
+    window.addEventListener("mousedown", handleClickOutside, true);
+    return () => window.removeEventListener("mousedown", handleClickOutside, true);
+  });
 
   let isActive = $derived(
     rule.tunnelStatus.status === "connected" ||
@@ -81,11 +93,6 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-{#if menuOpen}
-  <div class="menu-backdrop" onclick={closeMenu}></div>
-{/if}
-
 {#if deleteDialogOpen}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -139,7 +146,7 @@
         </span>
       </label>
 
-      <div class="menu-anchor">
+      <div class="menu-anchor" bind:this={menuAnchorEl}>
         <button class="menu-trigger" onclick={() => menuOpen = !menuOpen} title="More actions">
           <span class="dots">⋮</span>
         </button>
@@ -429,12 +436,6 @@
 
   :global(.card .menu-item.danger) {
     color: var(--danger);
-  }
-
-  :global(.menu-backdrop) {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
   }
 
   :global(.dialog-backdrop) {
