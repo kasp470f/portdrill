@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`a183793`](https://github.com/kasp470f/portdrill/commit/a18379329e43ff27ca6f2f829a9f74fb3d47c75b)) feat: implement "Copy as SSH command" functionality - @kasp470f ([#59](https://github.com/kasp470f/portdrill/pull/59))
 
 ### Fixed
 - ([`43bd7a7`](https://github.com/kasp470f/portdrill/commit/43bd7a7827f2bc9b49ec7bf87a0fcb070ed0b9b4)) fix: Improve drag handle visibility and enhance drag-and-drop intuitiveness - @kasp470f ([#53](https://github.com/kasp470f/portdrill/pull/53))
