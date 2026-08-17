@@ -194,7 +194,7 @@
     align-items: center;
     cursor: grab;
     color: var(--text-secondary);
-    opacity: 0.25;
+    opacity: 0.55;
     transition: opacity 0.15s;
     user-select: none;
     font-size: 1rem;
