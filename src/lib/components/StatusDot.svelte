@@ -11,8 +11,6 @@
     switch (status.status) {
       case "connected":
         return "var(--success)";
-      case "connecting":
-        return "var(--warning)";
       case "error":
         return "var(--danger)";
       default:
