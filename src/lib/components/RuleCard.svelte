@@ -34,8 +34,11 @@
   });
 
   let isActive = $derived(
-    rule.tunnelStatus.status === "connected" ||
-      rule.tunnelStatus.status === "connecting",
+    rule.tunnelStatus.status === "connected"
+  );
+
+  let toggleChecked = $derived(
+    rule.tunnelStatus.status === "connected" || rule.tunnelStatus.status === "connecting"
   );
 
   let statusLabel = $derived.by(() => {
@@ -140,7 +143,12 @@
 
     <div class="card-right">
       <label class="toggle-switch" title={isActive ? "Disconnect" : "Connect"}>
-        <input type="checkbox" checked={isActive} onchange={handleToggle} disabled={toggling} />
+        <input
+          type="checkbox"
+          checked={toggleChecked}
+          onclick={(e) => { e.preventDefault(); void handleToggle(); }}
+          disabled={toggling}
+        />
         <span class="toggle-track">
           <span class="toggle-thumb"></span>
         </span>
@@ -201,7 +209,7 @@
   }
 
   :global(.card.error) {
-    border-color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 50%, var(--border) 50%);
   }
 
   :global(.card .card-row) {
