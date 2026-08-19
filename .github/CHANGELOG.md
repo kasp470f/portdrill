@@ -6,6 +6,7 @@
 - ([`a52f8a2`](https://github.com/kasp470f/portdrill/commit/a52f8a2af4382ba59fbd403c7f9e6d0f44c8285f)) feat: enhance SSH connection error handling and capture stderr output - @kasp470f ([#61](https://github.com/kasp470f/portdrill/pull/61))
 
 ### Fixed
+- ([`125a93d`](https://github.com/kasp470f/portdrill/commit/125a93d176f5a83c243612af47142f8e74b2c91d)) fix: improve UX for RuleCard and StatusDot components - @kasp470f ([#62](https://github.com/kasp470f/portdrill/pull/62))
 
 ## v0.2.15 - (2026-08-17)
 
