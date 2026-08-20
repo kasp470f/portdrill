@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`68172d1`](https://github.com/kasp470f/portdrill/commit/68172d1521aac2e32fe9b4abf5569c97ed4c385d)) Revert "release: bump version to 0.4.0" - @kasp470f ([#63](https://github.com/kasp470f/portdrill/pull/63))
 - ([`a52f8a2`](https://github.com/kasp470f/portdrill/commit/a52f8a2af4382ba59fbd403c7f9e6d0f44c8285f)) feat: enhance SSH connection error handling and capture stderr output - @kasp470f ([#61](https://github.com/kasp470f/portdrill/pull/61))
 
 ### Fixed
