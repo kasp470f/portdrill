@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`716eb04`](https://github.com/kasp470f/portdrill/commit/716eb0488e10a373693bd8dc24e87bb832a0bd99)) feat: add host key inspection and clearing functionality - @kasp470f
 
 ### Fixed
 
