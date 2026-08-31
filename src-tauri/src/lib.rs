@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod known_hosts;
 mod models;
 mod tunnel_manager;
 
@@ -55,6 +56,8 @@ pub fn run() {
             commands::toggle_rule,
             commands::get_tunnel_status,
             commands::reorder_rules,
+            commands::inspect_host_key,
+            commands::clear_host_key,
         ])
         .setup(|app| {
             let has_tray = Arc::new(AtomicBool::new(false));

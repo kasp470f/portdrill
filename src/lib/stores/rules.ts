@@ -1,7 +1,7 @@
 import { writable } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Rule, RuleWithStatus, StatusEvent } from "../types";
+import type { HostKeyInfo, Rule, RuleWithStatus, StatusEvent } from "../types";
 import { toCleanRule } from "../types";
 
 export const rules = writable<RuleWithStatus[]>([]);
@@ -54,6 +54,15 @@ export async function toggleRule(id: string): Promise<boolean> {
     ),
   );
   return connected;
+}
+
+/** Neither host-key call touches rule data, so neither needs a fetchRules() resync. */
+export async function inspectHostKey(id: string): Promise<HostKeyInfo> {
+  return await invoke<HostKeyInfo>("inspect_host_key", { id });
+}
+
+export async function clearHostKey(id: string): Promise<string> {
+  return await invoke<string>("clear_host_key", { id });
 }
 
 export function listenForStatusChanges() {

@@ -1,5 +1,6 @@
 use crate::config;
-use crate::models::{Rule, RuleWithStatus, TunnelStatus};
+use crate::known_hosts;
+use crate::models::{HostKeyInfo, Rule, RuleWithStatus, TunnelStatus};
 use crate::tunnel_manager::TunnelManager;
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
@@ -7,6 +8,17 @@ use tauri::{AppHandle, State};
 pub struct AppState {
     pub rules: Mutex<Vec<Rule>>,
     pub tunnel_manager: TunnelManager,
+}
+
+/// Copies out the host and port under a short-lived lock, so callers never hold
+/// the rules mutex while a subprocess runs.
+fn ssh_endpoint(state: &State<AppState>, id: &str) -> Result<(String, u16), String> {
+    let rules = state.rules.lock().map_err(|e| e.to_string())?;
+    rules
+        .iter()
+        .find(|r| r.id == id)
+        .map(|r| (r.ssh_host.clone(), r.ssh_port))
+        .ok_or_else(|| "Rule not found".to_string())
 }
 
 #[tauri::command]
@@ -82,6 +94,33 @@ pub fn toggle_rule(state: State<AppState>, id: String, app: AppHandle) -> Result
 #[tauri::command]
 pub fn get_tunnel_status(state: State<AppState>, id: String) -> TunnelStatus {
     state.tunnel_manager.get_status(&id)
+}
+
+/// Reports the key the host is presenting right now, so the user can compare it
+/// against their deploy output before agreeing to wipe the saved one.
+#[tauri::command]
+pub async fn inspect_host_key(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<HostKeyInfo, String> {
+    let (host, port) = ssh_endpoint(&state, &id)?;
+
+    // ssh-keyscan blocks for up to its timeout; keep it off the main thread.
+    tauri::async_runtime::spawn_blocking(move || known_hosts::scan(&host, port))
+        .await
+        .map_err(|e| format!("Host key scan failed: {e}"))
+}
+
+/// Runs `ssh-keygen -R` for the rule's host — the manual step after a bastion
+/// redeploy. Guarded by a confirmation in the UI; never called automatically.
+#[tauri::command]
+pub fn clear_host_key(state: State<AppState>, id: String) -> Result<String, String> {
+    if state.tunnel_manager.is_connected(&id) {
+        return Err("Cannot clear the host key of an active tunnel. Disconnect first.".into());
+    }
+
+    let (host, port) = ssh_endpoint(&state, &id)?;
+    known_hosts::remove(&host, port)
 }
 
 #[tauri::command]

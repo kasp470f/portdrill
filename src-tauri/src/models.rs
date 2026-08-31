@@ -74,7 +74,26 @@ pub enum TunnelStatus {
     Disconnected,
     Connecting,
     Connected,
-    Error { message: String },
+    #[serde(rename_all = "camelCase")]
+    Error {
+        message: String,
+        /// Set when ssh refused because the host presented a different key than
+        /// the one in known_hosts. The UI offers `ssh-keygen -R` only for these.
+        #[serde(default)]
+        host_key_changed: bool,
+    },
+}
+
+/// What a host is currently presenting, so the user can compare before we wipe
+/// the saved key. Never fails as a whole: an unreachable host fills `scan_error`
+/// and leaves `fingerprints` empty.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostKeyInfo {
+    /// The known_hosts entry name, e.g. `[bastion.example.com]:2222`.
+    pub target: String,
+    pub fingerprints: Vec<String>,
+    pub scan_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

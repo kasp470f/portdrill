@@ -23,7 +23,15 @@ export type TunnelStatus =
   | { status: "disconnected" }
   | { status: "connecting" }
   | { status: "connected" }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; hostKeyChanged: boolean };
+
+/** What a host is presenting right now, shown before clearing the saved key. */
+export interface HostKeyInfo {
+  /** The known_hosts entry name, e.g. `[bastion.example.com]:2222`. */
+  target: string;
+  fingerprints: string[];
+  scanError: string | null;
+}
 
 export interface RuleWithStatus extends Rule {
   tunnelStatus: TunnelStatus;

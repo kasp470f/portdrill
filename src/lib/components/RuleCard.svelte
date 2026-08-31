@@ -1,9 +1,9 @@
 <script lang="ts">
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-  import type { RuleWithStatus } from "../types";
+  import type { HostKeyInfo, RuleWithStatus } from "../types";
   import { forwardSummary, forwardTypeLabel, toCleanRule } from "../types";
   import { formatSshCommand } from "../sshParser";
-  import { toggleRule, deleteRule } from "../stores/rules";
+  import { toggleRule, deleteRule, clearHostKey, inspectHostKey } from "../stores/rules";
   import StatusDot from "./StatusDot.svelte";
   import AppButton from "./AppButton.svelte";
 
@@ -21,6 +21,12 @@
   let deleteDialogOpen = $state(false);
   let showForwards = $state(false);
   let menuAnchorEl: HTMLDivElement | undefined = $state();
+  let hostKeyDialogOpen = $state(false);
+  let hostKeyInfo: HostKeyInfo | null = $state(null);
+  let scanning = $state(false);
+  let clearing = $state(false);
+  let hostKeyError = $state("");
+  let reconnectAfterClear = $state(false);
 
   $effect(() => {
     if (!menuOpen) return;
@@ -82,6 +88,51 @@
     closeMenu();
   }
 
+  /**
+   * The scan is advisory: if we can't reach the host we still let the user
+   * clear, we just can't show them anything to check the new key against.
+   */
+  async function openHostKeyDialog(reconnect: boolean) {
+    reconnectAfterClear = reconnect;
+    hostKeyInfo = null;
+    hostKeyError = "";
+    hostKeyDialogOpen = true;
+    closeMenu();
+
+    scanning = true;
+    try {
+      hostKeyInfo = await inspectHostKey(rule.id);
+    } catch (e) {
+      hostKeyInfo = {
+        target: `${rule.sshHost}:${rule.sshPort}`,
+        fingerprints: [],
+        scanError: String(e),
+      };
+    } finally {
+      scanning = false;
+    }
+  }
+
+  function closeHostKeyDialog() {
+    hostKeyDialogOpen = false;
+  }
+
+  async function handleClearHostKey() {
+    clearing = true;
+    hostKeyError = "";
+    try {
+      await clearHostKey(rule.id);
+      hostKeyDialogOpen = false;
+      if (reconnectAfterClear) {
+        await toggleRule(rule.id);
+      }
+    } catch (e) {
+      hostKeyError = String(e);
+    } finally {
+      clearing = false;
+    }
+  }
+
   function closeMenu() {
     menuOpen = false;
   }
@@ -109,6 +160,57 @@
       <AppButton type="plain" onclick={closeDeleteDialog}>Cancel</AppButton>
       <AppButton type="danger" onclick={() => { void handleDelete(); }} disabled={deleting}>
         {deleting ? "Deleting..." : "Delete rule"}
+      </AppButton>
+    </div>
+  </div>
+{/if}
+
+{#if hostKeyDialogOpen}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="dialog-backdrop" onclick={closeHostKeyDialog}></div>
+  <!-- svelte-ignore a11y_interactive_supports_focus -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="host-key-dialog" role="dialog" aria-modal="true" aria-labelledby="host-key-title" onclick={(e) => e.stopPropagation()}>
+    <h3 id="host-key-title">Clear saved host key?</h3>
+    <p>
+      This runs <code>ssh-keygen -R</code> for <strong>{rule.sshHost}:{rule.sshPort}</strong>,
+      dropping its entry from known_hosts. The next connection will trust whichever
+      key the host offers.
+    </p>
+
+    {#if scanning}
+      <p class="host-key-muted">Checking what the host is presenting…</p>
+    {:else if hostKeyInfo && hostKeyInfo.fingerprints.length > 0}
+      <div class="host-key-fingerprints">
+        <span class="host-key-muted">The host is now presenting:</span>
+        {#each hostKeyInfo.fingerprints as fingerprint}
+          <span class="fingerprint">{fingerprint}</span>
+        {/each}
+      </div>
+      <p class="host-key-muted">
+        Confirm this matches what your deploy reported before continuing.
+      </p>
+    {:else if hostKeyInfo?.scanError}
+      <p class="host-key-muted">
+        Couldn't read the host's current key to show you: {hostKeyInfo.scanError}
+      </p>
+    {/if}
+
+    {#if hostKeyError}
+      <p class="host-key-failure">{hostKeyError}</p>
+    {/if}
+
+    <div class="dialog-actions">
+      <AppButton type="plain" onclick={closeHostKeyDialog}>Cancel</AppButton>
+      <AppButton type="warning" onclick={() => { void handleClearHostKey(); }} disabled={clearing || scanning}>
+        {#if clearing}
+          Clearing...
+        {:else if reconnectAfterClear}
+          Clear &amp; reconnect
+        {:else}
+          Clear host key
+        {/if}
       </AppButton>
     </div>
   </div>
@@ -172,6 +274,9 @@
             <button class="menu-item" onclick={() => { void handleCopyCommand(); }}>
               Copy as SSH command
             </button>
+            <button class="menu-item" onclick={() => { void openHostKeyDialog(false); }} disabled={isActive}>
+              Clear saved host key…
+            </button>
             <button class="menu-item danger" onclick={openDeleteDialog} disabled={isActive}>
               Delete rule
             </button>
@@ -180,6 +285,18 @@
       </div>
     </div>
   </div>
+
+  {#if rule.tunnelStatus.status === "error" && rule.tunnelStatus.hostKeyChanged}
+    <div class="host-key-alert">
+      <div class="host-key-alert-text">
+        <strong>Host key changed</strong>
+        <span>{rule.tunnelStatus.message}</span>
+      </div>
+      <AppButton type="warning" onclick={() => { void openHostKeyDialog(true); }}>
+        Clear host key &amp; reconnect
+      </AppButton>
+    </div>
+  {/if}
 
   {#if showForwards}
     <div class="forwards">
@@ -453,7 +570,8 @@
     background: rgba(0, 0, 0, 0.55);
   }
 
-  :global(.delete-dialog) {
+  :global(.delete-dialog),
+  :global(.host-key-dialog) {
     position: fixed;
     top: 50%;
     left: 50%;
@@ -470,13 +588,15 @@
     gap: 12px;
   }
 
-  :global(.delete-dialog h3) {
+  :global(.delete-dialog h3),
+  :global(.host-key-dialog h3) {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
   }
 
-  :global(.delete-dialog p) {
+  :global(.delete-dialog p),
+  :global(.host-key-dialog p) {
     color: var(--text-secondary);
     line-height: 1.5;
   }
@@ -508,6 +628,74 @@
   :global(.dialog-btn:disabled) {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  /* Host key changed: the one error with a remediation, so it gets a strip
+     on the card instead of hiding in the status dot's tooltip. */
+  :global(.card .host-key-alert) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border) 60%);
+    background: color-mix(in srgb, var(--warning) 10%, var(--bg-primary) 90%);
+  }
+
+  :global(.card .host-key-alert-text) {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  :global(.card .host-key-alert-text strong) {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--warning);
+  }
+
+  :global(.card .host-key-alert-text span) {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+  }
+
+  :global(.host-key-dialog code) {
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+    font-size: 0.8125rem;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--bg-input);
+  }
+
+  :global(.host-key-dialog .host-key-muted) {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+
+  :global(.host-key-dialog .host-key-failure) {
+    font-size: 0.8125rem;
+    color: var(--danger);
+    overflow-wrap: anywhere;
+  }
+
+  :global(.host-key-dialog .host-key-fingerprints) {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: var(--bg-primary);
+  }
+
+  :global(.host-key-dialog .fingerprint) {
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+    font-size: 0.8125rem;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
   }
 
   /* Forwards (collapsible) */
