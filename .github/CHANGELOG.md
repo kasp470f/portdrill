@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`27b939a`](https://github.com/kasp470f/portdrill/commit/27b939a061ecfa093220c3d59f344b02c6a16a04)) feat: redesigned UI (compact list, chip tree, groups, new dialogs and error states) - @kasp470f ([#68](https://github.com/kasp470f/portdrill/pull/68))
 
 ### Fixed
 - ([`1871cac`](https://github.com/kasp470f/portdrill/commit/1871caccbf3380be0d3607ffb557dcceb5067037)) fix: prevent duplicate ssh process when toggling during connect - @kasp470f ([#67](https://github.com/kasp470f/portdrill/pull/67))
