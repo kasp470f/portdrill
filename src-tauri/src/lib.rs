@@ -58,6 +58,9 @@ pub fn run() {
             commands::reorder_rules,
             commands::inspect_host_key,
             commands::clear_host_key,
+            commands::set_forwards_hidden,
+            commands::set_rule_group,
+            commands::ssh_available,
         ])
         .setup(|app| {
             let has_tray = Arc::new(AtomicBool::new(false));

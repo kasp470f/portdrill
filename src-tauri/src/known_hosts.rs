@@ -46,9 +46,11 @@ fn last_line(text: &str, fallback: &str) -> String {
         .to_string()
 }
 
-/// Asks the host what key it's presenting right now and fingerprints it.
+/// Asks the host what key it's presenting right now and fingerprints it, and
+/// looks up what known_hosts currently has saved for it.
 pub fn scan(host: &str, port: u16) -> HostKeyInfo {
     let target = host_target(host, port);
+    let saved_fingerprints = saved(&target).unwrap_or_default();
 
     let result = keyscan(host, port).and_then(|keys| fingerprint(&keys));
 
@@ -57,13 +59,49 @@ pub fn scan(host: &str, port: u16) -> HostKeyInfo {
             target,
             fingerprints,
             scan_error: None,
+            saved_fingerprints,
         },
         Err(scan_error) => HostKeyInfo {
             target,
             fingerprints: Vec::new(),
             scan_error: Some(scan_error),
+            saved_fingerprints,
         },
     }
+}
+
+/// Fingerprints of the key(s) saved in known_hosts for `target`, via
+/// `ssh-keygen -l -F`. An empty list means nothing is saved (or we couldn't
+/// tell); the UI just leaves the "saved key" row out then.
+fn saved(target: &str) -> Result<Vec<String>, String> {
+    let output = hidden_command("ssh-keygen")
+        .arg("-l")
+        .arg("-F")
+        .arg(target)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| spawn_error("ssh-keygen", e))?;
+
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(parse_saved_line)
+        .collect())
+}
+
+/// `ssh-keygen -l -F host` prints `# Host ... found: line N` comments and then
+/// `<host> <TYPE> <hash>`; we want `<TYPE> <hash>` to match `parse_fingerprint_line`.
+fn parse_saved_line(line: &str) -> Option<String> {
+    if line.trim_start().starts_with('#') {
+        return None;
+    }
+    let mut parts = line.split_whitespace();
+    let _host = parts.next()?;
+    let key_type = parts.next()?;
+    let hash = parts.next()?;
+    if !hash.contains(':') {
+        return None;
+    }
+    Some(format!("{key_type} {hash}"))
 }
 
 fn keyscan(host: &str, port: u16) -> Result<String, String> {
@@ -192,6 +230,16 @@ mod tests {
             parse_fingerprint_line("256 SHA256:9k2LxmQ4t bastion.example.com (ED25519)").as_deref(),
             Some("ED25519 SHA256:9k2LxmQ4t")
         );
+    }
+
+    #[test]
+    fn parses_a_saved_known_hosts_line() {
+        assert_eq!(
+            parse_saved_line("[bastion.example.com]:2222 ED25519 SHA256:Xq8rT0m2Lk9v").as_deref(),
+            Some("ED25519 SHA256:Xq8rT0m2Lk9v")
+        );
+        assert_eq!(parse_saved_line("# Host [bastion.example.com]:2222 found: line 3"), None);
+        assert_eq!(parse_saved_line(""), None);
     }
 
     #[test]

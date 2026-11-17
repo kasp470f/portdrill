@@ -1,17 +1,56 @@
 :root {
-  --bg-primary: #18181b;
-  --bg-secondary: #202023;
-  --bg-card: #27272a;
-  --bg-input: #303033;
-  --border: #3f3f46;
-  --text-primary: #e4e4e7;
+  /* Surfaces, darkest to lightest */
+  --bg-titlebar: #101012;
+  --bg-primary: #141416;
+  --bg-secondary: #18181b;
+  --bg-card: #18181b;
+  --bg-raised: #1c1c1f;
+  --bg-dialog: #1a1a1d;
+  --bg-input: #141416;
+  --bg-chip: #1e1e22;
+  --bg-hover: #1f1f23;
+  --bg-active: #2a2a2f;
+  --bg-badge: #2e2e33;
+
+  --border: #26262b;
+  --border-strong: #2e2e33;
+  --border-input: #34343a;
+  --border-button: #3a3a40;
+  --tree-line: #3f3f46;
+
+  --text-primary: #ececef;
+  --text-strong: #d4d4d8;
   --text-secondary: #a1a1aa;
+  --text-muted: #8e8e98;
+  --text-disabled: #71717a;
+
   --accent: #6c8cff;
   --accent-hover: #8aa4ff;
+  --accent-text: #0b1020;
+  --link: #8aa4ff;
+
+  /* Status colours: green/yellow/red only ever mean connected/connecting/failed */
   --success: #4ade80;
+  --success-track: #1f7a45;
+  --success-track-border: #2a9d5a;
+  --success-halo: rgba(74, 222, 128, 0.15);
   --warning: #fbbf24;
+  --warning-track: #7a5c12;
+  --warning-track-border: #a37a18;
+  --warning-halo: rgba(251, 191, 36, 0.18);
   --danger: #f87171;
+  --danger-text: #fca5a5;
+  --danger-strong: #fecaca;
+  --danger-bg: #2a1618;
+  --danger-border: #5a2a2e;
+  --danger-halo: rgba(248, 113, 113, 0.18);
+  --off: #52525b;
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "SF Mono", "Fira Code", Consolas, monospace;
+
   --radius: 8px;
+  --radius-card: 10px;
 }
 
 * {
@@ -20,13 +59,17 @@
   box-sizing: border-box;
 }
 
+html,
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, sans-serif;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
   background-color: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.5;
-  min-height: 100vh;
+  overflow: hidden;
 }
 
 button {
@@ -34,12 +77,85 @@ button {
   border: none;
   background: none;
   font-family: inherit;
+  color: inherit;
+  font-size: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }
 
 input,
-select {
+select,
+textarea {
   font-family: inherit;
   font-size: inherit;
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Shared form fields (dialogs) */
+.field-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-input);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(108, 140, 255, 0.2);
+}
+
+.field-input::placeholder {
+  color: var(--text-muted);
+}
+
+.field-input.mono {
+  font-size: 12px;
+}
+
+.field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.field-hint {
+  font-weight: 400;
+  color: var(--text-muted);
 }
 
 ::-webkit-scrollbar {
@@ -48,13 +164,14 @@ select {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-card);
+  background: #27272a;
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
+  background: #2f3140;
 }

@@ -7,66 +7,31 @@
 
   let { status }: Props = $props();
 
-  let color = $derived.by(() => {
+  let look = $derived.by(() => {
     switch (status.status) {
       case "connected":
-        return "var(--success)";
-      case "error":
-        return "var(--danger)";
-      default:
-        return "var(--text-secondary)";
-    }
-  });
-
-  let label = $derived.by(() => {
-    switch (status.status) {
-      case "connected":
-        return "Connected";
+        return { color: "var(--success)", halo: "var(--success-halo)", label: "Connected" };
       case "connecting":
-        return "Connecting...";
+        return { color: "var(--warning)", halo: "var(--warning-halo)", label: "Connecting…" };
       case "error":
-        return `Error: ${status.message}`;
+        return { color: "var(--danger)", halo: "var(--danger-halo)", label: `Failed: ${status.message}` };
       default:
-        return "Disconnected";
+        return { color: "var(--off)", halo: "transparent", label: "Off" };
     }
   });
 </script>
 
-<span class="status-dot" style="--dot-color: {color}" title={label}>
-  {#if status.status === "connecting"}
-    <span class="pulse"></span>
-  {/if}
-</span>
+<span class="status-dot" style="--dot: {look.color}; --halo: {look.halo}" title={look.label} aria-hidden="true"></span>
 
 <style>
-  :global(.status-dot) {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--dot-color);
+  .status-dot {
     position: relative;
-    flex-shrink: 0;
-  }
-
-  :global(.status-dot .pulse) {
-    position: absolute;
-    inset: -3px;
+    z-index: 1;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background-color: var(--dot-color);
-    opacity: 0.4;
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes -global-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-      opacity: 0.4;
-    }
-    50% {
-      transform: scale(1.6);
-      opacity: 0;
-    }
+    flex-shrink: 0;
+    background: var(--dot);
+    box-shadow: 0 0 0 3px var(--halo);
   }
 </style>

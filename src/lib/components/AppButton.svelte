@@ -1,71 +1,89 @@
 <script lang="ts">
-  export let type: "primary" | "warning" | "danger" | "plain" = "primary";
-  export let onclick: () => void = () => {};
-  export let disabled: boolean = false;
+  import type { Snippet } from "svelte";
+
+  interface Props {
+    type?: "primary" | "warning" | "danger" | "plain" | "ghost";
+    size?: "md" | "sm";
+    onclick?: (e: MouseEvent) => void;
+    disabled?: boolean;
+    title?: string;
+    children: Snippet;
+  }
+
+  let { type = "primary", size = "md", onclick, disabled = false, title, children }: Props = $props();
 </script>
 
-<button on:click={onclick} class="app-button {type}" disabled={disabled}>
-  <slot />
+<button type="button" class="app-button {type} {size}" {onclick} {disabled} {title}>
+  {@render children()}
 </button>
 
-<style lang="scss">
+<style>
   .app-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
     border-radius: var(--radius);
     border: 1px solid transparent;
-    background-color: var(--accent);
-    color: white;
-    font-size: 0.8rem;
+    font-size: 13px;
     font-weight: 600;
-    transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    white-space: nowrap;
+    transition: background-color 0.15s, border-color 0.15s, opacity 0.15s;
+  }
 
-    &:hover {
-      background-color: var(--accent-hover);
-    }
+  .app-button.sm {
+    height: 30px;
+    padding: 0 12px;
+    font-size: 12px;
+    border-radius: 7px;
+  }
 
-    &:active {
-      transform: translateY(1px);
-    }
+  .app-button:disabled {
+    opacity: 0.5;
+  }
 
-    &.primary {
-      background-color: var(--accent);
-      color: white;
+  .primary {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+  .primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
 
-      &:hover {
-        background-color: var(--accent-hover);
-      }
-    }
+  .warning {
+    background: var(--warning);
+    color: #1a1305;
+  }
+  .warning:hover:not(:disabled) {
+    background: #fcd34d;
+  }
 
-    &.warning {
-      background-color: var(--warning);
-      color: white;
+  .danger {
+    background: var(--danger-text);
+    color: #2a0d10;
+  }
+  .danger:hover:not(:disabled) {
+    background: var(--danger-strong);
+  }
 
-      &:hover {
-        background-color: color-mix(in srgb, var(--warning) 80%, #000 20%);
-      }
-    }
+  .plain {
+    background: transparent;
+    border-color: var(--border-button);
+    color: var(--text-strong);
+    font-weight: 500;
+  }
+  .plain:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
 
-    &.danger {
-      background-color: var(--danger);
-      color: white;
-
-      &:hover {
-        background-color: color-mix(in srgb, var(--danger) 80%, #000 20%);
-      }
-    }
-
-    &.plain {
-      background-color: var(--bg-card);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-
-      &:hover {
-        background-color: color-mix(in srgb, var(--bg-card) 80%, #000 20%);
-      }
-    }
+  .ghost {
+    background: transparent;
+    color: var(--text-strong);
+    font-weight: 500;
+  }
+  .ghost:hover:not(:disabled) {
+    background: var(--bg-hover);
   }
 </style>
