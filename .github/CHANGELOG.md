@@ -5,6 +5,7 @@
 ### Added
 
 ### Fixed
+- ([`d62b446`](https://github.com/kasp470f/portdrill/commit/d62b44634d945c2c7a3735edb7d80922ccf3c114)) fix: line the rule list up with the header's side margins - @kasp470f ([#69](https://github.com/kasp470f/portdrill/pull/69))
 
 ## v0.4.0 - (2026-11-17)
 
