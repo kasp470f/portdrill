@@ -1,5 +1,5 @@
 use crate::known_hosts;
-use crate::models::{Rule, StatusEvent, TunnelStatus};
+use crate::models::{ErrorKind, Rule, StatusEvent, TunnelStatus};
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::process::{Child, ExitStatus};
@@ -17,7 +17,9 @@ struct TunnelEntry {
     ssh_target: String,
 }
 
-fn spawn_ssh_child(rule: &Rule) -> Result<(Child, Arc<Mutex<String>>), String> {
+type SpawnedSsh = (Child, Arc<Mutex<String>>);
+
+fn spawn_ssh_child(rule: &Rule) -> Result<SpawnedSsh, (String, ErrorKind)> {
     let mut cmd = known_hosts::hidden_command("ssh");
     cmd.arg("-N")
         .arg("-o").arg("ExitOnForwardFailure=yes")
@@ -39,9 +41,14 @@ fn spawn_ssh_child(rule: &Rule) -> Result<(Child, Arc<Mutex<String>>), String> {
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped());
 
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("Failed to spawn ssh: {e}"))?;
+    let mut child = cmd.spawn().map_err(|e| {
+        let kind = if e.kind() == std::io::ErrorKind::NotFound {
+            ErrorKind::SshMissing
+        } else {
+            ErrorKind::Other
+        };
+        (format!("Failed to spawn ssh: {e}"), kind)
+    })?;
 
     let stderr_buf = Arc::new(Mutex::new(String::new()));
     if let Some(stderr) = child.stderr.take() {
@@ -94,27 +101,72 @@ fn host_key_message(ssh_target: &str, stderr: &str) -> String {
     message
 }
 
-/// Returns the message to show and whether it was a host key mismatch.
+/// Sorts ssh's stderr into the failures the UI knows how to explain. Order
+/// matters: a forwarding failure is reported alongside generic lines, so the
+/// specific checks run before the broad network ones.
+fn classify(stderr: &str) -> ErrorKind {
+    let has = |needle: &str| stderr.contains(needle);
+
+    if is_host_key_changed(stderr) {
+        ErrorKind::HostKeyChanged
+    } else if has("Address already in use")
+        || has("cannot listen to port")
+        || has("Could not request local forwarding")
+    {
+        ErrorKind::LocalPortBusy
+    } else if has("remote port forwarding failed") {
+        ErrorKind::RemotePortRefused
+    } else if (has("Identity file") && has("not accessible"))
+        || has("UNPROTECTED PRIVATE KEY FILE")
+        || has("Load key")
+        || has("invalid format")
+    {
+        ErrorKind::KeyFile
+    } else if has("Permission denied") || has("Too many authentication failures") {
+        ErrorKind::AuthRejected
+    } else if has("Could not resolve hostname") || has("Name or service not known") {
+        ErrorKind::UnknownHost
+    } else if has("Connection timed out")
+        || has("Connection refused")
+        || has("No route to host")
+        || has("Network is unreachable")
+        || has("Operation timed out")
+    {
+        ErrorKind::Unreachable
+    } else if has("closed by remote host")
+        || has("Connection reset")
+        || has("Broken pipe")
+        || has("Timeout, server")
+        || has("not responding")
+    {
+        ErrorKind::ConnectionLost
+    } else {
+        ErrorKind::Other
+    }
+}
+
+/// Returns the message to show and what kind of failure it was.
 fn describe_exit(
     ssh_target: &str,
     status: ExitStatus,
     stderr_buf: &Arc<Mutex<String>>,
-) -> (String, bool) {
+) -> (String, ErrorKind) {
     let captured = stderr_buf.lock().unwrap();
+    let kind = classify(&captured);
 
-    if is_host_key_changed(&captured) {
-        return (host_key_message(ssh_target, &captured), true);
+    if kind == ErrorKind::HostKeyChanged {
+        return (host_key_message(ssh_target, &captured), kind);
     }
 
     if let Some(last) = captured.lines().rev().find(|l| !l.trim().is_empty()) {
-        return (last.to_string(), false);
+        return (last.to_string(), kind);
     }
     drop(captured);
 
     if status.success() {
-        ("SSH process exited".to_string(), false)
+        ("SSH process exited".to_string(), kind)
     } else {
-        (format!("SSH process exited with code {}", status), false)
+        (format!("SSH process exited with code {}", status), kind)
     }
 }
 
@@ -179,16 +231,9 @@ impl TunnelManager {
 
         let (mut child, stderr_buf) = match spawn_ssh_child(rule) {
             Ok(v) => v,
-            Err(e) => {
-                self.emit_status(
-                    app,
-                    &rule.id,
-                    TunnelStatus::Error {
-                        message: e.clone(),
-                        host_key_changed: false,
-                    },
-                );
-                return Err(e);
+            Err((message, kind)) => {
+                self.emit_status(app, &rule.id, TunnelStatus::error(message.clone(), kind));
+                return Err(message);
             }
         };
 
@@ -198,15 +243,8 @@ impl TunnelManager {
         std::thread::sleep(CONNECT_PROBE_DELAY);
 
         if let Ok(Some(exit_status)) = child.try_wait() {
-            let (message, host_key_changed) = describe_exit(&ssh_target, exit_status, &stderr_buf);
-            self.emit_status(
-                app,
-                &rule.id,
-                TunnelStatus::Error {
-                    message: message.clone(),
-                    host_key_changed,
-                },
-            );
+            let (message, kind) = describe_exit(&ssh_target, exit_status, &stderr_buf);
+            self.emit_status(app, &rule.id, TunnelStatus::error(message.clone(), kind));
             return Err(message);
         }
 
@@ -274,37 +312,26 @@ impl TunnelManager {
         for (id, entry) in tunnels.iter_mut() {
             match entry.child.try_wait() {
                 Ok(Some(exit_status)) => {
-                    let (message, host_key_changed) =
+                    let (message, kind) =
                         describe_exit(&entry.ssh_target, exit_status, &entry.stderr_buf);
-                    entry.status = TunnelStatus::Error {
-                        message: message.clone(),
-                        host_key_changed,
+                    // It was running, so anything we can't name more precisely
+                    // is a dropped connection rather than a failure to connect.
+                    let kind = if kind == ErrorKind::Other {
+                        ErrorKind::ConnectionLost
+                    } else {
+                        kind
                     };
-                    self.emit_status(
-                        app,
-                        id,
-                        TunnelStatus::Error {
-                            message,
-                            host_key_changed,
-                        },
-                    );
+                    let status = TunnelStatus::error(message, kind);
+                    entry.status = status.clone();
+                    self.emit_status(app, id, status);
                     dead.push(id.clone());
                 }
                 Ok(None) => {} // still running
                 Err(e) => {
-                    let message = format!("Health check failed: {e}");
-                    entry.status = TunnelStatus::Error {
-                        message: message.clone(),
-                        host_key_changed: false,
-                    };
-                    self.emit_status(
-                        app,
-                        id,
-                        TunnelStatus::Error {
-                            message,
-                            host_key_changed: false,
-                        },
-                    );
+                    let status =
+                        TunnelStatus::error(format!("Health check failed: {e}"), ErrorKind::Other);
+                    entry.status = status.clone();
+                    self.emit_status(app, id, status);
                     dead.push(id.clone());
                 }
             }
@@ -380,6 +407,32 @@ mod tests {
         assert!(!manager.is_connecting("rule-1"));
         assert!(!manager.is_busy("rule-1"));
         assert!(manager.reserve("rule-1").is_ok(), "slot is freed when the attempt ends");
+    }
+
+    #[test]
+    fn classifies_common_ssh_failures() {
+        let cases = [
+            (MISMATCH_STDERR, ErrorKind::HostKeyChanged),
+            ("deploy@bastion.example.com: Permission denied (publickey).", ErrorKind::AuthRejected),
+            ("ssh: connect to host bastion.example.com port 22: Connection timed out", ErrorKind::Unreachable),
+            ("ssh: connect to host x port 22: Connection refused", ErrorKind::Unreachable),
+            ("ssh: Could not resolve hostname bastion.exmaple.com: No such host is known.", ErrorKind::UnknownHost),
+            (
+                "bind [127.0.0.1]:5432: Address already in use\nchannel_setup_fwd_listener_tcpip: cannot listen to port: 5432\nCould not request local forwarding.",
+                ErrorKind::LocalPortBusy,
+            ),
+            ("Error: remote port forwarding failed for listen port 8080", ErrorKind::RemotePortRefused),
+            (
+                "Warning: Identity file /home/me/.ssh/staging not accessible: No such file or directory.\nme@host: Permission denied (publickey).",
+                ErrorKind::KeyFile,
+            ),
+            ("Connection to bastion.example.com closed by remote host.", ErrorKind::ConnectionLost),
+            ("something we have never seen", ErrorKind::Other),
+            ("", ErrorKind::Other),
+        ];
+        for (stderr, expected) in cases {
+            assert_eq!(classify(stderr), expected, "stderr: {stderr}");
+        }
     }
 
     #[test]

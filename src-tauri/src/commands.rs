@@ -61,6 +61,46 @@ pub fn update_rule(state: State<AppState>, rule: Rule) -> Result<Rule, String> {
     }
 }
 
+/// Runs `f` on one rule and saves. For display-only fields (group, whether the
+/// forwards are hidden), which may change while the tunnel is running.
+fn update_display_field(
+    state: &State<AppState>,
+    id: &str,
+    f: impl FnOnce(&mut Rule),
+) -> Result<(), String> {
+    let mut rules = state.rules.lock().map_err(|e| e.to_string())?;
+    let rule = rules
+        .iter_mut()
+        .find(|r| r.id == id)
+        .ok_or_else(|| "Rule not found".to_string())?;
+    f(rule);
+    config::save_rules(&rules)
+}
+
+#[tauri::command]
+pub fn set_forwards_hidden(state: State<AppState>, id: String, hidden: bool) -> Result<(), String> {
+    update_display_field(&state, &id, |r| r.forwards_hidden = hidden)
+}
+
+#[tauri::command]
+pub fn set_rule_group(state: State<AppState>, id: String, group: String) -> Result<(), String> {
+    let group = group.trim().to_string();
+    update_display_field(&state, &id, |r| r.group = group)
+}
+
+/// Whether an `ssh` program can be started at all. The UI shows a setup banner
+/// instead of per-rule errors when it can't.
+#[tauri::command]
+pub fn ssh_available() -> bool {
+    known_hosts::hidden_command("ssh")
+        .arg("-V")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok()
+}
+
 #[tauri::command]
 pub fn delete_rule(state: State<AppState>, id: String, app: AppHandle) -> Result<(), String> {
     // A connect in progress would insert its tunnel after we delete the rule,
