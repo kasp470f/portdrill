@@ -17,13 +17,29 @@ export interface Rule {
   sshUser: string;
   sshKeyPath: string;
   forwards: Forward[];
+  /** Display group; empty string means "no group". */
+  group: string;
+  /** Whether the rule card collapses its forwards (remembered per rule). */
+  forwardsHidden: boolean;
 }
+
+export type ErrorKind =
+  | "hostKeyChanged"
+  | "authRejected"
+  | "unreachable"
+  | "unknownHost"
+  | "localPortBusy"
+  | "remotePortRefused"
+  | "keyFile"
+  | "connectionLost"
+  | "sshMissing"
+  | "other";
 
 export type TunnelStatus =
   | { status: "disconnected" }
   | { status: "connecting" }
   | { status: "connected" }
-  | { status: "error"; message: string; hostKeyChanged: boolean };
+  | { status: "error"; message: string; hostKeyChanged: boolean; kind: ErrorKind };
 
 /** What a host is presenting right now, shown before clearing the saved key. */
 export interface HostKeyInfo {
@@ -31,6 +47,8 @@ export interface HostKeyInfo {
   target: string;
   fingerprints: string[];
   scanError: string | null;
+  /** What known_hosts currently has saved for this host. */
+  savedFingerprints: string[];
 }
 
 export interface RuleWithStatus extends Rule {
@@ -62,6 +80,8 @@ export function emptyRule(): Rule {
     sshUser: "",
     sshKeyPath: "",
     forwards: [emptyForward()],
+    group: "",
+    forwardsHidden: false,
   };
 }
 
@@ -73,6 +93,8 @@ export function toCleanRule(source: Rule | RuleWithStatus): Rule {
     sshPort: source.sshPort,
     sshUser: source.sshUser,
     sshKeyPath: source.sshKeyPath,
+    group: source.group ?? "",
+    forwardsHidden: source.forwardsHidden ?? false,
     forwards: source.forwards.map((f) => ({
       forwardType: f.forwardType,
       localPort: f.localPort,
@@ -104,4 +126,16 @@ export function forwardTypeLabel(type: ForwardType): string {
     case "dynamic":
       return "D";
   }
+}
+
+/** The port this forward opens on the local side, if any (Local and SOCKS). */
+export function localListenPort(fwd: Forward): number | undefined {
+  return fwd.forwardType === "remote" ? undefined : fwd.localPort;
+}
+
+const typeOrder: Record<ForwardType, number> = { local: 0, remote: 1, dynamic: 2 };
+
+/** Forwards sorted Local, Remote, SOCKS, as the card shows them. */
+export function sortedForwards(forwards: Forward[]): Forward[] {
+  return [...forwards].sort((a, b) => typeOrder[a.forwardType] - typeOrder[b.forwardType]);
 }

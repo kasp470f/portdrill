@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { HostKeyInfo, Rule, RuleWithStatus, StatusEvent } from "../types";
@@ -20,9 +20,39 @@ export async function createRule(rule: Rule): Promise<Rule> {
   return created;
 }
 
+/** Creates several rules in order (the paste-many flow), then refreshes once. */
+export async function createRules(list: Rule[]): Promise<Rule[]> {
+  const created: Rule[] = [];
+  for (const rule of list) {
+    created.push(await invoke<Rule>("create_rule", { rule: toCleanRule(rule) }));
+  }
+  await fetchRules();
+  return created;
+}
+
 export async function updateRule(rule: Rule): Promise<Rule> {
   const updated = await invoke<Rule>("update_rule", { rule: toCleanRule(rule) });
   await fetchRules();
+  return updated;
+}
+
+function statusOf(id: string) {
+  return get(rules).find((r) => r.id === id)?.tunnelStatus.status;
+}
+
+/**
+ * Saves an edit even while the tunnel runs: the backend refuses to edit an
+ * active tunnel, so stop it, save, and start it again with the new settings.
+ */
+export async function updateRuleRestarting(rule: Rule): Promise<Rule> {
+  const wasConnected = statusOf(rule.id) === "connected";
+  if (wasConnected) {
+    await toggleRule(rule.id);
+  }
+  const updated = await updateRule(rule);
+  if (wasConnected) {
+    await toggleRule(rule.id);
+  }
   return updated;
 }
 
@@ -54,6 +84,31 @@ export async function toggleRule(id: string): Promise<boolean> {
     ),
   );
   return connected;
+}
+
+function patchRule(id: string, patch: Partial<RuleWithStatus>) {
+  rules.update((current) => current.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+}
+
+/** Display-only: allowed while connected. Updates the list immediately. */
+export async function setForwardsHidden(id: string, hidden: boolean): Promise<void> {
+  patchRule(id, { forwardsHidden: hidden });
+  try {
+    await invoke("set_forwards_hidden", { id, hidden });
+  } catch (e) {
+    patchRule(id, { forwardsHidden: !hidden });
+    throw e;
+  }
+}
+
+/** Display-only: allowed while connected. */
+export async function setRuleGroup(id: string, group: string): Promise<void> {
+  await invoke("set_rule_group", { id, group });
+  await fetchRules();
+}
+
+export async function sshAvailable(): Promise<boolean> {
+  return await invoke<boolean>("ssh_available");
 }
 
 /** Neither host-key call touches rule data, so neither needs a fetchRules() resync. */
