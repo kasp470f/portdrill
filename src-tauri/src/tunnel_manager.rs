@@ -1,6 +1,6 @@
 use crate::known_hosts;
 use crate::models::{Rule, StatusEvent, TunnelStatus};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::process::{Child, ExitStatus};
 use std::sync::{Arc, Mutex};
@@ -120,22 +120,58 @@ fn describe_exit(
 
 pub struct TunnelManager {
     tunnels: Mutex<HashMap<String, TunnelEntry>>,
+    /// Rules between "connect requested" and "entry inserted into `tunnels`".
+    /// Without this, the probe delay is a window where a second connect sees
+    /// nothing in `tunnels` and spawns a second, untracked ssh process.
+    ///
+    /// Lock order: always `tunnels` before `connecting`.
+    connecting: Mutex<HashSet<String>>,
+}
+
+/// Holds a rule's slot in `connecting` and frees it on every exit path out of
+/// `connect`, including early returns on spawn or fail-fast errors.
+struct ConnectingGuard<'a> {
+    connecting: &'a Mutex<HashSet<String>>,
+    rule_id: String,
+}
+
+impl Drop for ConnectingGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut connecting) = self.connecting.lock() {
+            connecting.remove(&self.rule_id);
+        }
+    }
 }
 
 impl TunnelManager {
     pub fn new() -> Self {
         Self {
             tunnels: Mutex::new(HashMap::new()),
+            connecting: Mutex::new(HashSet::new()),
         }
     }
 
-    pub fn connect(&self, rule: &Rule, app: &AppHandle) -> Result<(), String> {
-        {
-            let tunnels = self.tunnels.lock().map_err(|e| e.to_string())?;
-            if tunnels.contains_key(&rule.id) {
-                return Err("Tunnel already active".into());
-            }
+    /// Atomically checks that the rule is neither running nor already
+    /// connecting, and marks it as connecting.
+    fn reserve(&self, rule_id: &str) -> Result<ConnectingGuard<'_>, String> {
+        let tunnels = self.tunnels.lock().map_err(|e| e.to_string())?;
+        if tunnels.contains_key(rule_id) {
+            return Err("Tunnel already active".into());
         }
+        let mut connecting = self.connecting.lock().map_err(|e| e.to_string())?;
+        if !connecting.insert(rule_id.to_string()) {
+            return Err("Tunnel is already connecting".into());
+        }
+        Ok(ConnectingGuard {
+            connecting: &self.connecting,
+            rule_id: rule_id.to_string(),
+        })
+    }
+
+    pub fn connect(&self, rule: &Rule, app: &AppHandle) -> Result<(), String> {
+        // Held until this function returns, so the slot stays taken until the
+        // entry is in `tunnels` (success) or we have given up (error).
+        let _reservation = self.reserve(&rule.id)?;
 
         self.emit_status(app, &rule.id, TunnelStatus::Connecting);
 
@@ -205,6 +241,22 @@ impl TunnelManager {
     pub fn is_connected(&self, rule_id: &str) -> bool {
         let tunnels = self.tunnels.lock().unwrap();
         tunnels.contains_key(rule_id)
+    }
+
+    pub fn is_connecting(&self, rule_id: &str) -> bool {
+        let connecting = self.connecting.lock().unwrap();
+        connecting.contains(rule_id)
+    }
+
+    /// Connected or in the middle of connecting: the rule's ssh process may be
+    /// running, so its config must not change underneath it.
+    pub fn is_busy(&self, rule_id: &str) -> bool {
+        let tunnels = self.tunnels.lock().unwrap();
+        if tunnels.contains_key(rule_id) {
+            return true;
+        }
+        let connecting = self.connecting.lock().unwrap();
+        connecting.contains(rule_id)
     }
 
     pub fn get_status(&self, rule_id: &str) -> TunnelStatus {
@@ -308,6 +360,27 @@ mod tests {
         "Host key for github.com has changed and you have requested strict checking.\n",
         "Host key verification failed.\n",
     );
+
+    #[test]
+    fn a_rule_cannot_be_reserved_twice_while_connecting() {
+        let manager = TunnelManager::new();
+
+        let first = manager.reserve("rule-1").expect("first connect reserves the rule");
+        assert!(manager.is_connecting("rule-1"));
+        assert!(manager.is_busy("rule-1"));
+        assert!(!manager.is_connected("rule-1"));
+
+        let second = manager.reserve("rule-1");
+        assert_eq!(second.err().as_deref(), Some("Tunnel is already connecting"));
+
+        // Other rules are unaffected.
+        assert!(manager.reserve("rule-2").is_ok());
+
+        drop(first);
+        assert!(!manager.is_connecting("rule-1"));
+        assert!(!manager.is_busy("rule-1"));
+        assert!(manager.reserve("rule-1").is_ok(), "slot is freed when the attempt ends");
+    }
 
     #[test]
     fn detects_a_changed_host_key() {

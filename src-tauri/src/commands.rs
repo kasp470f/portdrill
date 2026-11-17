@@ -47,7 +47,7 @@ pub fn create_rule(state: State<AppState>, rule: Rule) -> Result<Rule, String> {
 
 #[tauri::command]
 pub fn update_rule(state: State<AppState>, rule: Rule) -> Result<Rule, String> {
-    if state.tunnel_manager.is_connected(&rule.id) {
+    if state.tunnel_manager.is_busy(&rule.id) {
         return Err("Cannot edit an active tunnel. Disconnect first.".into());
     }
 
@@ -63,6 +63,11 @@ pub fn update_rule(state: State<AppState>, rule: Rule) -> Result<Rule, String> {
 
 #[tauri::command]
 pub fn delete_rule(state: State<AppState>, id: String, app: AppHandle) -> Result<(), String> {
+    // A connect in progress would insert its tunnel after we delete the rule,
+    // leaving an ssh process with no rule to stop it from.
+    if state.tunnel_manager.is_connecting(&id) {
+        return Err("Cannot delete a tunnel while it is connecting. Try again in a moment.".into());
+    }
     if state.tunnel_manager.is_connected(&id) {
         state.tunnel_manager.disconnect(&id, &app)?;
     }
@@ -115,7 +120,7 @@ pub async fn inspect_host_key(
 /// redeploy. Guarded by a confirmation in the UI; never called automatically.
 #[tauri::command]
 pub fn clear_host_key(state: State<AppState>, id: String) -> Result<String, String> {
-    if state.tunnel_manager.is_connected(&id) {
+    if state.tunnel_manager.is_busy(&id) {
         return Err("Cannot clear the host key of an active tunnel. Disconnect first.".into());
     }
 
