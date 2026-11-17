@@ -61,8 +61,9 @@
     overflow: hidden;
   }
 
+  /* Everything below the header lines up with its 20px side margins. */
   .banners {
-    padding: 0 12px;
+    padding: 0 20px;
   }
 
   .banners:empty {
@@ -73,7 +74,11 @@
     flex-grow: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 0 12px;
+    /* 20px on the left; on the right 14px plus the always-reserved 6px
+       scrollbar, so cards end exactly where the search and buttons do,
+       whether or not the list is long enough to scroll. */
+    padding: 0 14px 0 20px;
+    scrollbar-gutter: stable;
   }
 
   .scroll::-webkit-scrollbar {
