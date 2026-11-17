@@ -51,7 +51,7 @@
 
 <style>
   .banner {
-    margin: 0 12px 10px;
+    margin: 0 20px 10px;
     display: flex;
     flex-direction: column;
     gap: 10px;
