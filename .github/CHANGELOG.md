@@ -5,6 +5,7 @@
 ### Added
 
 ### Fixed
+- ([`1871cac`](https://github.com/kasp470f/portdrill/commit/1871caccbf3380be0d3607ffb557dcceb5067037)) fix: prevent duplicate ssh process when toggling during connect - @kasp470f ([#67](https://github.com/kasp470f/portdrill/pull/67))
 
 ## v0.3.2 - (2026-08-31)
 
