@@ -3,21 +3,30 @@
   import { forwardTypeLabel, sortedForwards } from "../types";
 
   /**
-   * A rule's forwards as chips hanging off the status dot on thin tree lines.
-   * Display only: the chips aren't clickable. `reach` is how far the first
-   * line climbs back up towards the dot.
+   * A rule's forwards hanging off the status dot on thin tree lines.
+   *
+   * Open: one chip per forward (badge, port, destination). Display only.
+   * Hidden: a single branch carrying just the L / R / D badges, each in its
+   * own small chip, wrapping when there are many. Clicking them calls
+   * `onShow`.
+   *
+   * `reach` is how far the first line climbs back up towards the dot.
    */
   interface Props {
     forwards: Forward[];
+    hidden?: boolean;
+    onShow?: () => void;
     reach?: number;
   }
 
-  let { forwards, reach = 11 }: Props = $props();
+  let { forwards, hidden = false, onShow, reach = 11 }: Props = $props();
 
   const LEAF = 30;
 
+  let sorted = $derived(sortedForwards(forwards));
+
   let leaves = $derived(
-    sortedForwards(forwards).map((fwd, i, all) => {
+    sorted.map((fwd, i, all) => {
       const first = i === 0;
       const extra = first ? reach : 0;
       return {
@@ -36,25 +45,42 @@
       };
     }),
   );
+
+  let showLabel = $derived(
+    forwards.length === 1 ? "Show 1 hidden forward" : `Show ${forwards.length} hidden forwards`,
+  );
 </script>
 
 <div class="tree">
-  {#each leaves as leaf, i (i)}
-    <div class="leaf">
-      {#if leaf.last}
-        <span class="elbow" style="top: {leaf.top}px; height: {leaf.elbowHeight}px" aria-hidden="true"></span>
-      {:else}
-        <span class="stem" style="top: {leaf.top}px; height: {leaf.lineHeight}px" aria-hidden="true"></span>
-        <span class="tick" aria-hidden="true"></span>
-      {/if}
-      <span class="chip">
-        <span class="badge">{leaf.badge}</span>
-        <span class="port">{leaf.port ?? "?"}</span>
-        <span class="arrow">{leaf.arrow}</span>
-        <span class="dest">{leaf.dest}</span>
-      </span>
+  {#if hidden}
+    <div class="leaf wrap">
+      <span class="elbow" style="top: {-reach}px; height: {LEAF / 2 + 1 + reach}px" aria-hidden="true"></span>
+      <button type="button" class="badges" aria-label={showLabel} title={showLabel} onclick={onShow}>
+        {#each sorted as fwd, i (i)}
+          <span class="badge-chip" aria-hidden="true">
+            <span class="type-badge {fwd.forwardType}">{forwardTypeLabel(fwd.forwardType)}</span>
+          </span>
+        {/each}
+      </button>
     </div>
-  {/each}
+  {:else}
+    {#each leaves as leaf, i (i)}
+      <div class="leaf">
+        {#if leaf.last}
+          <span class="elbow" style="top: {leaf.top}px; height: {leaf.elbowHeight}px" aria-hidden="true"></span>
+        {:else}
+          <span class="stem" style="top: {leaf.top}px; height: {leaf.lineHeight}px" aria-hidden="true"></span>
+          <span class="tick" aria-hidden="true"></span>
+        {/if}
+        <span class="chip">
+          <span class="type-badge {leaf.fwd.forwardType}">{leaf.badge}</span>
+          <span class="port">{leaf.port ?? "?"}</span>
+          <span class="arrow">{leaf.arrow}</span>
+          <span class="dest">{leaf.dest}</span>
+        </span>
+      </div>
+    {/each}
+  {/if}
 </div>
 
 <style>
@@ -74,6 +100,16 @@
     display: flex;
     align-items: center;
     min-width: 0;
+  }
+
+  /* The hidden branch grows when its badges wrap; the elbow stays on the
+     first row (3px padding + half of a 24px chip = the 15px midline). */
+  .leaf.wrap {
+    height: auto;
+    min-height: 30px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    align-items: flex-start;
   }
 
   .stem {
@@ -117,17 +153,9 @@
     cursor: default;
   }
 
-  .badge {
+  .type-badge {
     min-width: 16px;
     height: 16px;
-    border-radius: 4px;
-    background: var(--bg-badge);
-    color: var(--text-strong);
-    font-size: 10px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   .port {
@@ -143,5 +171,26 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    border-radius: 6px;
+  }
+
+  /* 4px left padding matches the open chip's, so the first badge sits on the
+     exact same spot whether the forwards are open or hidden. */
+  .badge-chip {
+    display: flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 4px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-chip);
   }
 </style>

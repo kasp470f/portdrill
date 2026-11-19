@@ -32,11 +32,11 @@
   <div class="kinds">
     <h3>Three kinds of forward</h3>
     <dl>
-      <dt><span class="badge">L</span>Local</dt>
+      <dt><span class="type-badge local">L</span>Local</dt>
       <dd>Reach something behind the server, like a database, from a port on this computer.</dd>
-      <dt><span class="badge">R</span>Remote</dt>
+      <dt><span class="type-badge remote">R</span>Remote</dt>
       <dd>Let the server reach something on this computer, like a local dev server for webhooks.</dd>
-      <dt><span class="badge">D</span>SOCKS</dt>
+      <dt><span class="type-badge dynamic">D</span>SOCKS</dt>
       <dd>A proxy your browser or other apps can use to connect as if they were on the server.</dd>
     </dl>
   </div>
@@ -174,18 +174,8 @@
     line-height: 1.5;
   }
 
-  .badge {
+  .type-badge {
     width: 18px;
     height: 18px;
-    border-radius: 4px;
-    background: var(--bg-badge);
-    color: var(--text-strong);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
   }
 </style>
