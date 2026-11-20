@@ -50,9 +50,14 @@
         }
       : null,
   );
-  let hiddenText = $derived(
-    rule.forwards.length === 1 ? "1 forward hidden" : `${rule.forwards.length} forwards hidden`,
+  // A forward that made the connection fail is shown even when the rule keeps
+  // its forwards hidden. This doesn't change the saved setting: once the error
+  // clears, the rule goes back to its badges.
+  let forwardFailed = $derived(
+    rule.tunnelStatus.status === "error" &&
+      (rule.tunnelStatus.kind === "localPortBusy" || rule.tunnelStatus.kind === "remotePortRefused"),
   );
+  let forwardsHidden = $derived(rule.forwardsHidden && !forwardFailed);
 
   async function connectOrDisconnect(id = rule.id) {
     try {
@@ -223,14 +228,11 @@
   </div>
 
   {#if rule.forwards.length > 0}
-    {#if rule.forwardsHidden}
-      <button type="button" class="hidden-line" onclick={() => onMenu("toggleForwards")}>
-        <Icon name="eyeOff" size={14} />
-        {hiddenText} · <span class="link">Show</span>
-      </button>
-    {:else}
-      <ForwardTree forwards={rule.forwards} />
-    {/if}
+    <ForwardTree
+      forwards={rule.forwards}
+      hidden={forwardsHidden}
+      onShow={() => void onMenu("toggleForwards")}
+    />
   {/if}
 
   {#if error}
@@ -375,28 +377,6 @@
   .icon-btn.pressed {
     background: var(--bg-active);
     color: var(--text-primary);
-  }
-
-  .hidden-line {
-    margin-left: 14px;
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 24px;
-    padding: 0 8px;
-    border-radius: 6px;
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
-
-  .hidden-line:hover {
-    color: var(--text-primary);
-    background: var(--bg-active);
-  }
-
-  .link {
-    color: var(--link);
   }
 
   .error {

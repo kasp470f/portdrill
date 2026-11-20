@@ -105,7 +105,7 @@
           <div class="chips">
             {#each sortedForwards(rule.forwards) as f, j (j)}
               <span class="chip mono">
-                <span class="badge">{forwardTypeLabel(f.forwardType)}</span>
+                <span class="type-badge {f.forwardType}">{forwardTypeLabel(f.forwardType)}</span>
                 <span class="port">{f.forwardType === "remote" ? f.remotePort : f.localPort}</span>
                 {#if f.forwardType === "dynamic"}
                   <span class="dest">SOCKS5</span>
@@ -238,17 +238,9 @@
     font-size: 11px;
   }
 
-  .badge {
+  .type-badge {
     min-width: 16px;
     height: 16px;
-    border-radius: 4px;
-    background: var(--bg-badge);
-    color: var(--text-strong);
-    font-size: 10px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   .port {

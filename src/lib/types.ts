@@ -81,7 +81,9 @@ export function emptyRule(): Rule {
     sshKeyPath: "",
     forwards: [emptyForward()],
     group: "",
-    forwardsHidden: false,
+    // New rules (filled in or pasted) start with only their badges showing.
+    // Rules saved before this keep their own setting; a duplicate copies it.
+    forwardsHidden: true,
   };
 }
 
