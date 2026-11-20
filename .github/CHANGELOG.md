@@ -3,10 +3,13 @@
 ## Unreleased
 
 ### Added
-- ([`4e52225`](https://github.com/kasp470f/portdrill/commit/4e522258ac240945bf360185a077f36d5bca2682)) feat: coloured type badges and badge-only hidden forwards - @kasp470f ([#70](https://github.com/kasp470f/portdrill/pull/70))
 
 ### Fixed
 
+## v0.4.2 - (2026-11-20)
+
+### Added
+- ([`4e52225`](https://github.com/kasp470f/portdrill/commit/4e522258ac240945bf360185a077f36d5bca2682)) feat: coloured type badges and badge-only hidden forwards - @kasp470f ([#70](https://github.com/kasp470f/portdrill/pull/70))
 ## v0.4.1 - (2026-11-17)
 
 ### Fixed
