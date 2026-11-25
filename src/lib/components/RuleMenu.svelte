@@ -1,6 +1,7 @@
 <script lang="ts" module>
   export type MenuAction =
     | "toggleForwards"
+    | "toggleAutoReconnect"
     | "edit"
     | "duplicate"
     | "copyCommand"
@@ -11,6 +12,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { RuleWithStatus } from "../types";
+  import { isActiveStatus } from "../types";
   import Icon from "./Icon.svelte";
 
   interface Props {
@@ -66,9 +68,7 @@
     place();
   });
 
-  let active = $derived(
-    rule.tunnelStatus.status === "connected" || rule.tunnelStatus.status === "connecting",
-  );
+  let active = $derived(isActiveStatus(rule.tunnelStatus));
   let hasForwards = $derived(rule.forwards.length > 0);
 
   function run(action: MenuAction) {
@@ -142,6 +142,14 @@
       <span class="label">{rule.forwardsHidden ? "Show forwards" : "Hide forwards"}</span>
       <kbd>H</kbd>
     </button>
+    {#if rule.autoReconnect}
+      <button type="button" role="menuitem" class="item indent" onclick={() => run("toggleAutoReconnect")}>
+        <span class="label">
+          {rule.autoReconnectPaused ? "Resume auto-reconnect" : "Pause auto-reconnect"}
+          {#if !rule.autoReconnectPaused}<span class="sub">Until PortDrill restarts</span>{/if}
+        </span>
+      </button>
+    {/if}
     <div class="sep" role="separator"></div>
     <button type="button" role="menuitem" class="item indent" onclick={() => run("edit")}>
       <span class="label">

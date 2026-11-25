@@ -1,6 +1,7 @@
 <script lang="ts">
   import appIcon from "../../../src-tauri/icons/64x64.png";
   import { rules } from "../stores/rules";
+  import { isActiveStatus } from "../types";
   import { openNewRule } from "../stores/ui";
   import Icon from "./Icon.svelte";
 
@@ -15,9 +16,7 @@
   let { query = $bindable(), filter = $bindable(), searchEl = $bindable() }: Props = $props();
 
   let connected = $derived($rules.filter((r) => r.tunnelStatus.status === "connected").length);
-  let live = $derived(
-    $rules.filter((r) => r.tunnelStatus.status === "connected" || r.tunnelStatus.status === "connecting").length,
-  );
+  let live = $derived($rules.filter((r) => isActiveStatus(r.tunnelStatus)).length);
   let issues = $derived($rules.filter((r) => r.tunnelStatus.status === "error").length);
 
   let filters = $derived([

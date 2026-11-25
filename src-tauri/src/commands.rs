@@ -28,6 +28,7 @@ pub fn get_rules(state: State<AppState>) -> Vec<RuleWithStatus> {
         .iter()
         .map(|rule| RuleWithStatus {
             tunnel_status: state.tunnel_manager.get_status(&rule.id),
+            auto_reconnect_paused: state.tunnel_manager.is_paused(&rule.id),
             rule: rule.clone(),
         })
         .collect()
@@ -82,6 +83,20 @@ pub fn set_forwards_hidden(state: State<AppState>, id: String, hidden: bool) -> 
     update_display_field(&state, &id, |r| r.forwards_hidden = hidden)
 }
 
+/// Pauses or resumes auto-reconnect from the row menu. Never saved: the rule's
+/// own setting is untouched and the pause ends when PortDrill restarts.
+#[tauri::command]
+pub fn set_auto_reconnect_paused(
+    state: State<AppState>,
+    id: String,
+    paused: bool,
+    app: AppHandle,
+) -> Result<(), String> {
+    ssh_endpoint(&state, &id)?; // the rule must exist
+    state.tunnel_manager.set_paused(&id, paused, &app);
+    Ok(())
+}
+
 #[tauri::command]
 pub fn set_rule_group(state: State<AppState>, id: String, group: String) -> Result<(), String> {
     let group = group.trim().to_string();
@@ -103,9 +118,14 @@ pub fn ssh_available() -> bool {
 
 #[tauri::command]
 pub fn delete_rule(state: State<AppState>, id: String, app: AppHandle) -> Result<(), String> {
-    // A connect in progress would insert its tunnel after we delete the rule,
-    // leaving an ssh process with no rule to stop it from.
-    if state.tunnel_manager.is_connecting(&id) {
+    if state.tunnel_manager.is_reconnecting(&id) {
+        // Cancelling also covers an attempt that is mid-probe: it checks the
+        // reconnect is still current before storing a tunnel, so it can't
+        // leave an ssh process behind.
+        state.tunnel_manager.disconnect(&id, &app)?;
+    } else if state.tunnel_manager.is_connecting(&id) {
+        // A connect in progress would insert its tunnel after we delete the
+        // rule, leaving an ssh process with no rule to stop it from.
         return Err("Cannot delete a tunnel while it is connecting. Try again in a moment.".into());
     }
     if state.tunnel_manager.is_connected(&id) {
@@ -127,7 +147,9 @@ pub fn toggle_rule(state: State<AppState>, id: String, app: AppHandle) -> Result
 
     let rule = rule.ok_or("Rule not found")?;
 
-    if state.tunnel_manager.is_connected(&id) {
+    // Switching off a rule that is reconnecting stops the reconnect: a manual
+    // disconnect always wins over auto-reconnect.
+    if state.tunnel_manager.is_connected(&id) || state.tunnel_manager.is_reconnecting(&id) {
         state.tunnel_manager.disconnect(&id, &app)?;
         Ok(false)
     } else {

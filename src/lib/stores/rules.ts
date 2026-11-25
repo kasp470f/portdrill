@@ -45,7 +45,9 @@ function statusOf(id: string) {
  * active tunnel, so stop it, save, and start it again with the new settings.
  */
 export async function updateRuleRestarting(rule: Rule): Promise<Rule> {
-  const wasConnected = statusOf(rule.id) === "connected";
+  // A rule that is reconnecting counts as running: stop it, save, start it.
+  const before = statusOf(rule.id);
+  const wasConnected = before === "connected" || before === "reconnecting";
   if (wasConnected) {
     await toggleRule(rule.id);
   }
@@ -97,6 +99,20 @@ export async function setForwardsHidden(id: string, hidden: boolean): Promise<vo
     await invoke("set_forwards_hidden", { id, hidden });
   } catch (e) {
     patchRule(id, { forwardsHidden: !hidden });
+    throw e;
+  }
+}
+
+/**
+ * Pauses or resumes auto-reconnect until PortDrill restarts, without editing
+ * the rule. Pausing mid-reconnect stops it; the backend reports the new status.
+ */
+export async function setAutoReconnectPaused(id: string, paused: boolean): Promise<void> {
+  patchRule(id, { autoReconnectPaused: paused });
+  try {
+    await invoke("set_auto_reconnect_paused", { id, paused });
+  } catch (e) {
+    patchRule(id, { autoReconnectPaused: !paused });
     throw e;
   }
 }

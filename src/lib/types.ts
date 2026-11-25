@@ -21,6 +21,8 @@ export interface Rule {
   group: string;
   /** Whether the rule card collapses its forwards (remembered per rule). */
   forwardsHidden: boolean;
+  /** Bring the tunnel back when it drops after having been up. */
+  autoReconnect: boolean;
 }
 
 export type ErrorKind =
@@ -39,7 +41,28 @@ export type TunnelStatus =
   | { status: "disconnected" }
   | { status: "connecting" }
   | { status: "connected" }
-  | { status: "error"; message: string; hostKeyChanged: boolean; kind: ErrorKind };
+  | {
+      /** Dropped; auto-reconnect is waiting for, or making, attempt `attempt`. */
+      status: "reconnecting";
+      attempt: number;
+      maxAttempts: number;
+      /** Why the last connection or attempt ended. */
+      message: string;
+      kind: ErrorKind;
+    }
+  | {
+      status: "error";
+      message: string;
+      hostKeyChanged: boolean;
+      kind: ErrorKind;
+      /** Reconnect attempts that failed before this error; 0 without auto-reconnect. */
+      reconnectAttempts?: number;
+    };
+
+/** The ssh process may be running or about to be: on, starting, or coming back. */
+export function isActiveStatus(status: TunnelStatus): boolean {
+  return status.status === "connected" || status.status === "connecting" || status.status === "reconnecting";
+}
 
 /** What a host is presenting right now, shown before clearing the saved key. */
 export interface HostKeyInfo {
@@ -53,6 +76,8 @@ export interface HostKeyInfo {
 
 export interface RuleWithStatus extends Rule {
   tunnelStatus: TunnelStatus;
+  /** Paused from the row menu until PortDrill restarts. Never saved. */
+  autoReconnectPaused: boolean;
 }
 
 export interface StatusEvent {
@@ -84,6 +109,7 @@ export function emptyRule(): Rule {
     // New rules (filled in or pasted) start with only their badges showing.
     // Rules saved before this keep their own setting; a duplicate copies it.
     forwardsHidden: true,
+    autoReconnect: false,
   };
 }
 
@@ -97,6 +123,7 @@ export function toCleanRule(source: Rule | RuleWithStatus): Rule {
     sshKeyPath: source.sshKeyPath,
     group: source.group ?? "",
     forwardsHidden: source.forwardsHidden ?? false,
+    autoReconnect: source.autoReconnect ?? false,
     forwards: source.forwards.map((f) => ({
       forwardType: f.forwardType,
       localPort: f.localPort,

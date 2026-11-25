@@ -13,6 +13,12 @@
         return { color: "var(--success)", halo: "var(--success-halo)", label: "Connected" };
       case "connecting":
         return { color: "var(--warning)", halo: "var(--warning-halo)", label: "Connecting…" };
+      case "reconnecting":
+        return {
+          color: "var(--warning)",
+          halo: "var(--warning-halo)",
+          label: `Reconnecting (attempt ${status.attempt} of ${status.maxAttempts}): ${status.message}`,
+        };
       case "error":
         return { color: "var(--danger)", halo: "var(--danger-halo)", label: `Failed: ${status.message}` };
       default:

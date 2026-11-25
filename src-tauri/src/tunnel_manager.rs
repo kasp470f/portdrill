@@ -1,20 +1,95 @@
+use crate::commands::AppState;
 use crate::known_hosts;
 use crate::models::{ErrorKind, Rule, StatusEvent, TunnelStatus};
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::process::{Child, ExitStatus};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use std::time::{Duration, Instant};
+use tauri::{AppHandle, Emitter, Manager};
 
 const CONNECT_PROBE_DELAY: Duration = Duration::from_millis(1000);
 const STDERR_CAPTURE_CAP: usize = 4096;
+
+/// Failed reconnect attempts in a row before auto-reconnect gives up.
+pub const RECONNECT_MAX_ATTEMPTS: u32 = 3;
+const RECONNECT_BACKOFF_BASE: Duration = Duration::from_secs(2);
+const RECONNECT_BACKOFF_CAP: Duration = Duration::from_secs(60);
+/// A tunnel that auto-reconnected and stays up this long has recovered, so
+/// its next drop gets a fresh set of attempts. One that dies sooner keeps
+/// counting, so a connect-then-drop loop still ends.
+const RECONNECT_STABLE_AFTER: Duration = Duration::from_secs(60);
 
 struct TunnelEntry {
     child: Child,
     status: TunnelStatus,
     stderr_buf: Arc<Mutex<String>>,
     ssh_target: String,
+    connected_at: Instant,
+    /// The attempt that brought this tunnel back, or 0 for a manual connect.
+    reconnect_attempts: u32,
+}
+
+/// A rule whose tunnel dropped and that auto-reconnect is bringing back.
+/// `gen` tells a worker thread whether it is still the one in charge: any
+/// cancel (disconnect, pause, quit) removes the entry, and a newer drop gets a
+/// new generation.
+#[derive(Debug, Clone)]
+struct ReconnectState {
+    gen: u64,
+    /// The attempt being waited for or made, 1-based.
+    attempt: u32,
+    message: String,
+    kind: ErrorKind,
+}
+
+impl ReconnectState {
+    fn status(&self) -> TunnelStatus {
+        TunnelStatus::Reconnecting {
+            attempt: self.attempt,
+            max_attempts: RECONNECT_MAX_ATTEMPTS,
+            message: self.message.clone(),
+            kind: self.kind,
+        }
+    }
+}
+
+/// How long to wait before reconnect attempt `attempt` (1-based):
+/// 2s, 4s, 8s, 16s, … capped at 60s.
+fn backoff_delay(attempt: u32) -> Duration {
+    let doublings = attempt.saturating_sub(1).min(16);
+    RECONNECT_BACKOFF_BASE
+        .saturating_mul(1 << doublings)
+        .min(RECONNECT_BACKOFF_CAP)
+}
+
+/// Failures that retrying can't fix, or that shouldn't be retried with nobody
+/// watching: a changed host key could be someone intercepting the connection.
+fn is_retryable(kind: ErrorKind) -> bool {
+    !matches!(
+        kind,
+        ErrorKind::HostKeyChanged | ErrorKind::AuthRejected | ErrorKind::KeyFile | ErrorKind::SshMissing
+    )
+}
+
+/// Attempts already used up when a tunnel drops: none after a stable run,
+/// otherwise the ones it took to bring it back last time.
+fn starting_attempt(prev_attempts: u32, connected_for: Duration) -> u32 {
+    if connected_for >= RECONNECT_STABLE_AFTER {
+        0
+    } else {
+        prev_attempts
+    }
+}
+
+enum ConnectFailure {
+    /// ssh couldn't start or exited during the probe.
+    Failed(String, ErrorKind),
+    /// The rule is already running or connecting.
+    Busy(String),
+    /// The reconnect this attempt belonged to was cancelled meanwhile.
+    Cancelled,
 }
 
 type SpawnedSsh = (Child, Arc<Mutex<String>>);
@@ -176,8 +251,14 @@ pub struct TunnelManager {
     /// Without this, the probe delay is a window where a second connect sees
     /// nothing in `tunnels` and spawns a second, untracked ssh process.
     ///
-    /// Lock order: always `tunnels` before `connecting`.
+    /// Lock order: `tunnels`, then `connecting`, then `reconnects`, then
+    /// `paused`. Never take an earlier one while holding a later one.
     connecting: Mutex<HashSet<String>>,
+    /// Rules whose tunnel dropped and that auto-reconnect is bringing back.
+    reconnects: Mutex<HashMap<String, ReconnectState>>,
+    next_reconnect_gen: AtomicU64,
+    /// Rules whose auto-reconnect is paused from the row menu. In memory only.
+    paused: Mutex<HashSet<String>>,
 }
 
 /// Holds a rule's slot in `connecting` and frees it on every exit path out of
@@ -200,6 +281,9 @@ impl TunnelManager {
         Self {
             tunnels: Mutex::new(HashMap::new()),
             connecting: Mutex::new(HashSet::new()),
+            reconnects: Mutex::new(HashMap::new()),
+            next_reconnect_gen: AtomicU64::new(1),
+            paused: Mutex::new(HashSet::new()),
         }
     }
 
@@ -221,21 +305,39 @@ impl TunnelManager {
     }
 
     pub fn connect(&self, rule: &Rule, app: &AppHandle) -> Result<(), String> {
+        match self.try_connect(rule, app, TunnelStatus::Connecting, None) {
+            Ok(()) => Ok(()),
+            Err(ConnectFailure::Failed(message, kind)) => {
+                self.emit_status(app, &rule.id, TunnelStatus::error(message.clone(), kind));
+                Err(message)
+            }
+            Err(ConnectFailure::Busy(message)) => Err(message),
+            // Only a reconnect attempt can be cancelled.
+            Err(ConnectFailure::Cancelled) => Err("Connect was cancelled".into()),
+        }
+    }
+
+    /// Starts ssh and waits out the probe. Emits `progress` while it runs and
+    /// Connected on success, never an error: the caller decides what a failure
+    /// means. A reconnect attempt passes its generation and only goes ahead if
+    /// that reconnect is still current when the tunnel is about to be stored.
+    fn try_connect(
+        &self,
+        rule: &Rule,
+        app: &AppHandle,
+        progress: TunnelStatus,
+        reconnect: Option<(u64, u32)>,
+    ) -> Result<(), ConnectFailure> {
         // Held until this function returns, so the slot stays taken until the
         // entry is in `tunnels` (success) or we have given up (error).
-        let _reservation = self.reserve(&rule.id)?;
+        let _reservation = self.reserve(&rule.id).map_err(ConnectFailure::Busy)?;
 
-        self.emit_status(app, &rule.id, TunnelStatus::Connecting);
+        self.emit_status(app, &rule.id, progress);
 
         let ssh_target = format!("{}:{}", rule.ssh_host, rule.ssh_port);
 
-        let (mut child, stderr_buf) = match spawn_ssh_child(rule) {
-            Ok(v) => v,
-            Err((message, kind)) => {
-                self.emit_status(app, &rule.id, TunnelStatus::error(message.clone(), kind));
-                return Err(message);
-            }
-        };
+        let (mut child, stderr_buf) =
+            spawn_ssh_child(rule).map_err(|(message, kind)| ConnectFailure::Failed(message, kind))?;
 
         // Give the process a moment to fail fast (bad host, refused connection,
         // rejected auth) before we declare victory, so the reported error is
@@ -244,11 +346,27 @@ impl TunnelManager {
 
         if let Ok(Some(exit_status)) = child.try_wait() {
             let (message, kind) = describe_exit(&ssh_target, exit_status, &stderr_buf);
-            self.emit_status(app, &rule.id, TunnelStatus::error(message.clone(), kind));
-            return Err(message);
+            return Err(ConnectFailure::Failed(message, kind));
         }
 
-        let mut tunnels = self.tunnels.lock().map_err(|e| e.to_string())?;
+        let mut tunnels = self
+            .tunnels
+            .lock()
+            .map_err(|e| ConnectFailure::Failed(e.to_string(), ErrorKind::Other))?;
+
+        // Checked under the `tunnels` lock, which `disconnect` also holds while
+        // it cancels, so a stop that lands during the probe can't be missed.
+        let mut reconnect_attempts = 0;
+        if let Some((gen, attempt)) = reconnect {
+            if !self.finish_reconnect(&rule.id, gen) {
+                drop(tunnels);
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(ConnectFailure::Cancelled);
+            }
+            reconnect_attempts = attempt;
+        }
+
         tunnels.insert(
             rule.id.clone(),
             TunnelEntry {
@@ -256,6 +374,8 @@ impl TunnelManager {
                 status: TunnelStatus::Connected,
                 stderr_buf,
                 ssh_target,
+                connected_at: Instant::now(),
+                reconnect_attempts,
             },
         );
         drop(tunnels);
@@ -264,16 +384,110 @@ impl TunnelManager {
         Ok(())
     }
 
+    /// Stops the tunnel, and any auto-reconnect in progress for it.
     pub fn disconnect(&self, rule_id: &str, app: &AppHandle) -> Result<(), String> {
         let mut tunnels = self.tunnels.lock().map_err(|e| e.to_string())?;
+        self.cancel_any_reconnect(rule_id);
 
         if let Some(mut entry) = tunnels.remove(rule_id) {
             let _ = entry.child.kill();
             let _ = entry.child.wait();
         }
+        drop(tunnels);
 
         self.emit_status(app, rule_id, TunnelStatus::Disconnected);
         Ok(())
+    }
+
+    pub fn is_reconnecting(&self, rule_id: &str) -> bool {
+        self.reconnects.lock().unwrap().contains_key(rule_id)
+    }
+
+    pub fn is_paused(&self, rule_id: &str) -> bool {
+        self.paused.lock().unwrap().contains(rule_id)
+    }
+
+    /// Pauses or resumes auto-reconnect for a rule. Pausing while a reconnect
+    /// is under way stops it and shows the drop it was recovering from.
+    pub fn set_paused(&self, rule_id: &str, paused: bool, app: &AppHandle) {
+        if let Some(stopped) = self.update_paused(rule_id, paused) {
+            self.emit_status(app, rule_id, TunnelStatus::error(stopped.message, stopped.kind));
+        }
+    }
+
+    /// The bookkeeping half of `set_paused`. Returns the reconnect it stopped.
+    fn update_paused(&self, rule_id: &str, paused: bool) -> Option<ReconnectState> {
+        {
+            let mut set = self.paused.lock().unwrap();
+            if paused {
+                set.insert(rule_id.to_string());
+            } else {
+                set.remove(rule_id);
+            }
+        }
+        if paused {
+            self.cancel_any_reconnect(rule_id)
+        } else {
+            None
+        }
+    }
+
+    /// Registers a new reconnect for a dropped rule, replacing any older one.
+    /// `used` is how many attempts the previous drops already spent.
+    fn begin_reconnect(&self, rule_id: &str, used: u32, message: String, kind: ErrorKind) -> ReconnectState {
+        let state = ReconnectState {
+            gen: self.next_reconnect_gen.fetch_add(1, Ordering::Relaxed),
+            attempt: used + 1,
+            message,
+            kind,
+        };
+        self.reconnects
+            .lock()
+            .unwrap()
+            .insert(rule_id.to_string(), state.clone());
+        state
+    }
+
+    /// The reconnect's current state, if generation `gen` is still in charge.
+    fn current_reconnect(&self, rule_id: &str, gen: u64) -> Option<ReconnectState> {
+        self.reconnects
+            .lock()
+            .unwrap()
+            .get(rule_id)
+            .filter(|s| s.gen == gen)
+            .cloned()
+    }
+
+    /// Moves on to the next attempt after a failed one. None if cancelled.
+    fn advance_reconnect(
+        &self,
+        rule_id: &str,
+        gen: u64,
+        message: String,
+        kind: ErrorKind,
+    ) -> Option<ReconnectState> {
+        let mut reconnects = self.reconnects.lock().unwrap();
+        let state = reconnects.get_mut(rule_id).filter(|s| s.gen == gen)?;
+        state.attempt += 1;
+        state.message = message;
+        state.kind = kind;
+        Some(state.clone())
+    }
+
+    /// Ends generation `gen`'s reconnect. False if it was already cancelled
+    /// or replaced, in which case the caller must not report anything.
+    fn finish_reconnect(&self, rule_id: &str, gen: u64) -> bool {
+        let mut reconnects = self.reconnects.lock().unwrap();
+        if reconnects.get(rule_id).is_some_and(|s| s.gen == gen) {
+            reconnects.remove(rule_id);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn cancel_any_reconnect(&self, rule_id: &str) -> Option<ReconnectState> {
+        self.reconnects.lock().unwrap().remove(rule_id)
     }
 
     pub fn is_connected(&self, rule_id: &str) -> bool {
@@ -286,64 +500,101 @@ impl TunnelManager {
         connecting.contains(rule_id)
     }
 
-    /// Connected or in the middle of connecting: the rule's ssh process may be
-    /// running, so its config must not change underneath it.
+    /// Connected, connecting or reconnecting: the rule's ssh process may be
+    /// running (or about to be), so its config must not change underneath it.
     pub fn is_busy(&self, rule_id: &str) -> bool {
         let tunnels = self.tunnels.lock().unwrap();
         if tunnels.contains_key(rule_id) {
             return true;
         }
         let connecting = self.connecting.lock().unwrap();
-        connecting.contains(rule_id)
+        if connecting.contains(rule_id) {
+            return true;
+        }
+        let reconnects = self.reconnects.lock().unwrap();
+        reconnects.contains_key(rule_id)
     }
 
     pub fn get_status(&self, rule_id: &str) -> TunnelStatus {
         let tunnels = self.tunnels.lock().unwrap();
-        tunnels
+        if let Some(entry) = tunnels.get(rule_id) {
+            return entry.status.clone();
+        }
+        let reconnects = self.reconnects.lock().unwrap();
+        reconnects
             .get(rule_id)
-            .map(|e| e.status.clone())
+            .map(ReconnectState::status)
             .unwrap_or(TunnelStatus::Disconnected)
     }
 
-    pub fn health_check(&self, app: &AppHandle) {
-        let mut tunnels = self.tunnels.lock().unwrap();
-        let mut dead: Vec<String> = Vec::new();
+    /// Reaps tunnels whose ssh exited. Rules in `auto_reconnect` (the ones with
+    /// the setting on) get brought back unless paused or the failure is one
+    /// retrying can't fix; every other drop shows its error as before.
+    pub fn health_check(&self, app: &AppHandle, auto_reconnect: &HashSet<String>) {
+        let mut statuses: Vec<(String, TunnelStatus)> = Vec::new();
+        let mut workers: Vec<(String, u64)> = Vec::new();
 
-        for (id, entry) in tunnels.iter_mut() {
-            match entry.child.try_wait() {
-                Ok(Some(exit_status)) => {
-                    let (message, kind) =
-                        describe_exit(&entry.ssh_target, exit_status, &entry.stderr_buf);
-                    // It was running, so anything we can't name more precisely
-                    // is a dropped connection rather than a failure to connect.
-                    let kind = if kind == ErrorKind::Other {
-                        ErrorKind::ConnectionLost
-                    } else {
-                        kind
-                    };
-                    let status = TunnelStatus::error(message, kind);
-                    entry.status = status.clone();
-                    self.emit_status(app, id, status);
-                    dead.push(id.clone());
+        {
+            let mut tunnels = self.tunnels.lock().unwrap();
+            let mut dead: Vec<(String, String, ErrorKind, u32)> = Vec::new();
+
+            for (id, entry) in tunnels.iter_mut() {
+                let used = starting_attempt(entry.reconnect_attempts, entry.connected_at.elapsed());
+                match entry.child.try_wait() {
+                    Ok(Some(exit_status)) => {
+                        let (message, kind) =
+                            describe_exit(&entry.ssh_target, exit_status, &entry.stderr_buf);
+                        // It was running, so anything we can't name more precisely
+                        // is a dropped connection rather than a failure to connect.
+                        let kind = if kind == ErrorKind::Other {
+                            ErrorKind::ConnectionLost
+                        } else {
+                            kind
+                        };
+                        dead.push((id.clone(), message, kind, used));
+                    }
+                    Ok(None) => {} // still running
+                    Err(e) => {
+                        dead.push((id.clone(), format!("Health check failed: {e}"), ErrorKind::Other, used));
+                    }
                 }
-                Ok(None) => {} // still running
-                Err(e) => {
-                    let status =
-                        TunnelStatus::error(format!("Health check failed: {e}"), ErrorKind::Other);
-                    entry.status = status.clone();
-                    self.emit_status(app, id, status);
-                    dead.push(id.clone());
-                }
+            }
+
+            // Decided while `tunnels` is still locked, so a toggle can't slip in
+            // between the tunnel disappearing and its reconnect being registered.
+            for (id, message, kind, used) in dead {
+                tunnels.remove(&id);
+                let wanted =
+                    auto_reconnect.contains(&id) && !self.is_paused(&id) && is_retryable(kind);
+                let status = if wanted && used < RECONNECT_MAX_ATTEMPTS {
+                    let state = self.begin_reconnect(&id, used, message, kind);
+                    workers.push((id.clone(), state.gen));
+                    state.status()
+                } else if wanted {
+                    // Dropped again right after a reconnect, with no tries left.
+                    TunnelStatus::gave_up(message, kind, used)
+                } else {
+                    TunnelStatus::error(message, kind)
+                };
+                statuses.push((id, status));
             }
         }
 
-        for id in dead {
-            tunnels.remove(&id);
+        for (id, status) in statuses {
+            self.emit_status(app, &id, status);
+        }
+        for (id, gen) in workers {
+            let app = app.clone();
+            std::thread::spawn(move || run_reconnect(app, id, gen));
         }
     }
 
     pub fn disconnect_all(&self) {
         let mut tunnels = self.tunnels.lock().unwrap();
+        // Workers find their reconnect gone and stop without spawning ssh.
+        if let Ok(mut reconnects) = self.reconnects.lock() {
+            reconnects.clear();
+        }
         for (_, mut entry) in tunnels.drain() {
             let _ = entry.child.kill();
             let _ = entry.child.wait();
@@ -364,6 +615,68 @@ impl TunnelManager {
 impl Drop for TunnelManager {
     fn drop(&mut self) {
         self.disconnect_all();
+    }
+}
+
+/// One dropped rule's reconnect loop: wait, try, and repeat with a longer wait
+/// until the tunnel is back, the attempts run out, or someone cancels. Reads
+/// the rule fresh each time, so an edit or delete in the meantime is honoured.
+fn run_reconnect(app: AppHandle, rule_id: String, gen: u64) {
+    let state: tauri::State<AppState> = app.state();
+    let manager = &state.tunnel_manager;
+
+    loop {
+        let Some(waiting) = manager.current_reconnect(&rule_id, gen) else {
+            return;
+        };
+        std::thread::sleep(backoff_delay(waiting.attempt));
+
+        // Anything may have happened while we slept.
+        let Some(current) = manager.current_reconnect(&rule_id, gen) else {
+            return;
+        };
+        let rule = state
+            .rules
+            .lock()
+            .ok()
+            .and_then(|rules| rules.iter().find(|r| r.id == rule_id).cloned());
+        let Some(rule) = rule else {
+            // Deleted: nothing left to show it on.
+            manager.finish_reconnect(&rule_id, gen);
+            return;
+        };
+        if !rule.auto_reconnect || manager.is_paused(&rule_id) {
+            if manager.finish_reconnect(&rule_id, gen) {
+                manager.emit_status(&app, &rule_id, TunnelStatus::error(current.message, current.kind));
+            }
+            return;
+        }
+
+        let result = manager.try_connect(&rule, &app, current.status(), Some((gen, current.attempt)));
+        match result {
+            Ok(()) | Err(ConnectFailure::Cancelled) => return,
+            Err(ConnectFailure::Busy(_)) => {
+                // Started some other way; let that connect report itself.
+                manager.finish_reconnect(&rule_id, gen);
+                return;
+            }
+            Err(ConnectFailure::Failed(message, kind)) => {
+                if current.attempt >= RECONNECT_MAX_ATTEMPTS || !is_retryable(kind) {
+                    if manager.finish_reconnect(&rule_id, gen) {
+                        manager.emit_status(
+                            &app,
+                            &rule_id,
+                            TunnelStatus::gave_up(message, kind, current.attempt),
+                        );
+                    }
+                    return;
+                }
+                match manager.advance_reconnect(&rule_id, gen, message, kind) {
+                    Some(next) => manager.emit_status(&app, &rule_id, next.status()),
+                    None => return,
+                }
+            }
+        }
     }
 }
 
@@ -407,6 +720,115 @@ mod tests {
         assert!(!manager.is_connecting("rule-1"));
         assert!(!manager.is_busy("rule-1"));
         assert!(manager.reserve("rule-1").is_ok(), "slot is freed when the attempt ends");
+    }
+
+    #[test]
+    fn backoff_doubles_from_two_seconds_and_caps_at_a_minute() {
+        let secs: Vec<u64> = (1..=7).map(|a| backoff_delay(a).as_secs()).collect();
+        assert_eq!(secs, [2, 4, 8, 16, 32, 60, 60]);
+        assert_eq!(backoff_delay(0).as_secs(), 2);
+        assert_eq!(backoff_delay(u32::MAX).as_secs(), 60);
+    }
+
+    #[test]
+    fn only_transient_failures_are_retried() {
+        for kind in [
+            ErrorKind::ConnectionLost,
+            ErrorKind::Unreachable,
+            ErrorKind::UnknownHost,
+            ErrorKind::LocalPortBusy,
+            ErrorKind::RemotePortRefused,
+            ErrorKind::Other,
+        ] {
+            assert!(is_retryable(kind), "{kind:?} should be retried");
+        }
+        for kind in [
+            ErrorKind::HostKeyChanged,
+            ErrorKind::AuthRejected,
+            ErrorKind::KeyFile,
+            ErrorKind::SshMissing,
+        ] {
+            assert!(!is_retryable(kind), "{kind:?} must not be retried");
+        }
+    }
+
+    #[test]
+    fn a_quick_drop_after_reconnecting_keeps_counting() {
+        let soon = Duration::from_secs(5);
+        let later = RECONNECT_STABLE_AFTER;
+        assert_eq!(starting_attempt(0, soon), 0, "manual connects start fresh");
+        assert_eq!(starting_attempt(2, soon), 2);
+        assert_eq!(starting_attempt(2, later), 0, "a stable run earns new attempts");
+    }
+
+    #[test]
+    fn a_reconnect_marks_the_rule_busy_until_it_ends() {
+        let manager = TunnelManager::new();
+        let state = manager.begin_reconnect("rule-1", 0, "closed by remote host".into(), ErrorKind::ConnectionLost);
+
+        assert_eq!(state.attempt, 1);
+        assert!(manager.is_reconnecting("rule-1"));
+        assert!(manager.is_busy("rule-1"));
+        assert!(!manager.is_connected("rule-1"));
+        assert_eq!(
+            manager.get_status("rule-1"),
+            TunnelStatus::Reconnecting {
+                attempt: 1,
+                max_attempts: RECONNECT_MAX_ATTEMPTS,
+                message: "closed by remote host".into(),
+                kind: ErrorKind::ConnectionLost,
+            }
+        );
+
+        let next = manager
+            .advance_reconnect("rule-1", state.gen, "Connection timed out".into(), ErrorKind::Unreachable)
+            .expect("still current");
+        assert_eq!(next.attempt, 2);
+        assert_eq!(next.kind, ErrorKind::Unreachable);
+
+        assert!(manager.finish_reconnect("rule-1", state.gen));
+        assert!(!manager.is_reconnecting("rule-1"));
+        assert!(!manager.is_busy("rule-1"));
+        assert_eq!(manager.get_status("rule-1"), TunnelStatus::Disconnected);
+    }
+
+    #[test]
+    fn an_old_worker_cannot_touch_a_newer_reconnect() {
+        let manager = TunnelManager::new();
+        let old = manager.begin_reconnect("rule-1", 0, "dropped".into(), ErrorKind::ConnectionLost);
+        let new = manager.begin_reconnect("rule-1", 0, "dropped again".into(), ErrorKind::ConnectionLost);
+        assert_ne!(old.gen, new.gen);
+
+        assert!(manager.current_reconnect("rule-1", old.gen).is_none());
+        assert!(manager.advance_reconnect("rule-1", old.gen, "x".into(), ErrorKind::Other).is_none());
+        assert!(!manager.finish_reconnect("rule-1", old.gen));
+        assert!(manager.is_reconnecting("rule-1"), "the newer reconnect is untouched");
+    }
+
+    #[test]
+    fn pausing_stops_a_reconnect_and_resuming_does_not_start_one() {
+        let manager = TunnelManager::new();
+        let state = manager.begin_reconnect("rule-1", 1, "dropped".into(), ErrorKind::ConnectionLost);
+
+        let stopped = manager.update_paused("rule-1", true).expect("a reconnect was running");
+        assert_eq!(stopped.message, "dropped");
+        assert!(manager.is_paused("rule-1"));
+        assert!(!manager.is_reconnecting("rule-1"));
+        assert!(!manager.finish_reconnect("rule-1", state.gen), "the worker sees it was cancelled");
+
+        assert!(manager.update_paused("rule-1", false).is_none());
+        assert!(!manager.is_paused("rule-1"));
+        assert!(!manager.is_reconnecting("rule-1"));
+    }
+
+    #[test]
+    fn quitting_cancels_every_reconnect() {
+        let manager = TunnelManager::new();
+        manager.begin_reconnect("rule-1", 0, "dropped".into(), ErrorKind::ConnectionLost);
+        manager.begin_reconnect("rule-2", 0, "dropped".into(), ErrorKind::ConnectionLost);
+        manager.disconnect_all();
+        assert!(!manager.is_reconnecting("rule-1"));
+        assert!(!manager.is_reconnecting("rule-2"));
     }
 
     #[test]
