@@ -136,8 +136,9 @@ export async function clearHostKey(id: string): Promise<string> {
   return await invoke<string>("clear_host_key", { id });
 }
 
-export function listenForStatusChanges() {
-  listen<StatusEvent>("tunnel-status-changed", (event) => {
+/** Resolves once the listener is registered, so nothing emitted after is missed. */
+export async function listenForStatusChanges() {
+  await listen<StatusEvent>("tunnel-status-changed", (event) => {
     const { ruleId, status } = event.payload;
     rules.update((current) =>
       current.map((r) =>

@@ -74,6 +74,9 @@ pub struct Rule {
     /// Try to bring the tunnel back when it drops after having been up.
     /// Off unless the user turns it on; older configs load as off.
     pub auto_reconnect: bool,
+    /// Connect this rule's tunnel when PortDrill starts. Off unless the user
+    /// turns it on; older configs load as off.
+    pub connect_on_launch: bool,
 }
 
 /// What went wrong, so the UI can explain it and offer the right fix instead of
@@ -118,6 +121,10 @@ pub enum TunnelStatus {
         max_attempts: u32,
         message: String,
         kind: ErrorKind,
+        /// True when this is the start-up connect trying again, not a dropped
+        /// tunnel coming back.
+        #[serde(default)]
+        on_launch: bool,
     },
     #[serde(rename_all = "camelCase")]
     Error {
@@ -132,6 +139,9 @@ pub enum TunnelStatus {
         /// 0 when auto-reconnect wasn't involved.
         #[serde(default)]
         reconnect_attempts: u32,
+        /// The failed connect was the one PortDrill makes when it starts.
+        #[serde(default)]
+        on_launch: bool,
     },
 }
 
@@ -142,11 +152,18 @@ impl TunnelStatus {
 
     /// The error shown once auto-reconnect stops trying.
     pub fn gave_up(message: String, kind: ErrorKind, reconnect_attempts: u32) -> Self {
+        Self::failed(message, kind, reconnect_attempts, false)
+    }
+
+    /// `reconnect_attempts` failed retries came after the first failure;
+    /// `on_launch` says whether that first connect was the start-up one.
+    pub fn failed(message: String, kind: ErrorKind, reconnect_attempts: u32, on_launch: bool) -> Self {
         TunnelStatus::Error {
             message,
             host_key_changed: kind == ErrorKind::HostKeyChanged,
             kind,
             reconnect_attempts,
+            on_launch,
         }
     }
 }

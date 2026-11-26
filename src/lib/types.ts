@@ -23,6 +23,8 @@ export interface Rule {
   forwardsHidden: boolean;
   /** Bring the tunnel back when it drops after having been up. */
   autoReconnect: boolean;
+  /** Connect when PortDrill starts. */
+  connectOnLaunch: boolean;
 }
 
 export type ErrorKind =
@@ -49,6 +51,8 @@ export type TunnelStatus =
       /** Why the last connection or attempt ended. */
       message: string;
       kind: ErrorKind;
+      /** Retrying the start-up connect, not a dropped tunnel. */
+      onLaunch?: boolean;
     }
   | {
       status: "error";
@@ -57,6 +61,8 @@ export type TunnelStatus =
       kind: ErrorKind;
       /** Reconnect attempts that failed before this error; 0 without auto-reconnect. */
       reconnectAttempts?: number;
+      /** The connect that failed was the one PortDrill makes when it starts. */
+      onLaunch?: boolean;
     };
 
 /** The ssh process may be running or about to be: on, starting, or coming back. */
@@ -110,6 +116,7 @@ export function emptyRule(): Rule {
     // Rules saved before this keep their own setting; a duplicate copies it.
     forwardsHidden: true,
     autoReconnect: false,
+    connectOnLaunch: false,
   };
 }
 
@@ -124,6 +131,7 @@ export function toCleanRule(source: Rule | RuleWithStatus): Rule {
     group: source.group ?? "",
     forwardsHidden: source.forwardsHidden ?? false,
     autoReconnect: source.autoReconnect ?? false,
+    connectOnLaunch: source.connectOnLaunch ?? false,
     forwards: source.forwards.map((f) => ({
       forwardType: f.forwardType,
       localPort: f.localPort,

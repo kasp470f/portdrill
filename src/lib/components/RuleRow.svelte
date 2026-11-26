@@ -50,20 +50,29 @@
     status === "connecting"
       ? `Connecting to ${rule.name}…`
       : status === "reconnecting"
-        ? `Stop reconnecting ${rule.name}`
+        ? rule.tunnelStatus.status === "reconnecting" && rule.tunnelStatus.onLaunch
+          ? `Stop retrying ${rule.name}`
+          : `Stop reconnecting ${rule.name}`
         : active
           ? `Disconnect ${rule.name}`
           : `Connect ${rule.name}`,
   );
   let reconnectProgress = $derived(
     rule.tunnelStatus.status === "reconnecting"
-      ? `Reconnecting… ${rule.tunnelStatus.attempt} of ${rule.tunnelStatus.maxAttempts}`
+      ? `${rule.tunnelStatus.onLaunch ? "Retrying" : "Reconnecting"}… ${rule.tunnelStatus.attempt} of ${rule.tunnelStatus.maxAttempts}`
       : "",
   );
-  // Shown in the error box once auto-reconnect has stopped trying.
+  // Shown in the error box: a failed start-up connect, or auto-reconnect
+  // having stopped trying.
   let gaveUpNote = $derived.by(() => {
     if (rule.tunnelStatus.status !== "error") return "";
     const tries = rule.tunnelStatus.reconnectAttempts ?? 0;
+    const times = `${tries} ${tries === 1 ? "time" : "times"}`;
+    if (rule.tunnelStatus.onLaunch) {
+      return tries === 0
+        ? "Tried to connect when PortDrill started."
+        : `Tried to connect when PortDrill started, then ${times} more.`;
+    }
     if (tries === 0) return "";
     return `The connection dropped. Auto-reconnect gave up after ${tries} ${tries === 1 ? "try" : "tries"}.`;
   });
