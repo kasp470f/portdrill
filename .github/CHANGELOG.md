@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`b982a6c`](https://github.com/kasp470f/portdrill/commit/b982a6c76f10e406a5f3548c6c0cd0bcf3b4e530)) feat: auto-reconnect a tunnel when it drops - @kasp470f ([#71](https://github.com/kasp470f/portdrill/pull/71))
 
 ### Fixed
 
