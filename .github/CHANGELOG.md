@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- ([`69c4432`](https://github.com/kasp470f/portdrill/commit/69c4432c42776c148909487b21f5c4bfa25a8702)) feat: connect a rule when PortDrill starts - @kasp470f ([#72](https://github.com/kasp470f/portdrill/pull/72))
 
 ### Fixed
 
