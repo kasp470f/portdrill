@@ -155,6 +155,22 @@ pub fn run() {
                 state.tunnel_manager.health_check(&handle, &auto_reconnect);
             });
 
+            // "Connect when PortDrill starts": one thread per rule, so a slow
+            // server doesn't hold up the others.
+            let state: tauri::State<AppState> = app.state();
+            let at_launch: Vec<models::Rule> = state
+                .rules
+                .lock()
+                .map(|rules| rules.iter().filter(|r| r.connect_on_launch).cloned().collect())
+                .unwrap_or_default();
+            for rule in at_launch {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let state: tauri::State<AppState> = handle.state();
+                    state.tunnel_manager.connect_at_launch(&rule, &handle);
+                });
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| {

@@ -39,9 +39,11 @@
     }
   }
 
-  onMount(() => {
-    fetchRules();
-    listenForStatusChanges();
+  onMount(async () => {
+    // Listen first: start-up connects may already be under way, and a status
+    // they report between the fetch and the listener would be lost.
+    await listenForStatusChanges();
+    await fetchRules();
   });
 
   let visible = $derived($rules.filter((r) => !$pendingDeletes.has(r.id)));

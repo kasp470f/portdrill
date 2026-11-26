@@ -266,16 +266,29 @@
         </button>
       </fieldset>
 
-      <div class="option-row">
-        <span class="option-text">
-          <span class="legend-title">Reconnect automatically</span>
-          <span class="legend-sub">If the connection drops, try again up to 3 times.</span>
-        </span>
-        <Toggle
-          state={form.autoReconnect ? "on" : "off"}
-          label="Reconnect automatically"
-          onToggle={() => (form.autoReconnect = !form.autoReconnect)}
-        />
+      <div class="options">
+        <div class="option-row">
+          <span class="option-text">
+            <span class="legend-title">Connect when PortDrill starts</span>
+            <span class="legend-sub">Turn this tunnel on each time PortDrill opens.</span>
+          </span>
+          <Toggle
+            state={form.connectOnLaunch ? "on" : "off"}
+            label="Connect when PortDrill starts"
+            onToggle={() => (form.connectOnLaunch = !form.connectOnLaunch)}
+          />
+        </div>
+        <div class="option-row">
+          <span class="option-text">
+            <span class="legend-title">Reconnect automatically</span>
+            <span class="legend-sub">If the connection drops, try again up to 3 times.</span>
+          </span>
+          <Toggle
+            state={form.autoReconnect ? "on" : "off"}
+            label="Reconnect automatically"
+            onToggle={() => (form.autoReconnect = !form.autoReconnect)}
+          />
+        </div>
       </div>
     </form>
   {/if}
@@ -370,6 +383,12 @@
   .legend-sub {
     font-size: 12px;
     color: var(--text-secondary);
+  }
+
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
   .option-row {
