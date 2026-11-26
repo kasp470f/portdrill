@@ -1,10 +1,11 @@
 <script lang="ts">
   /**
    * On/off switch. "connecting" shows the yellow track and is disabled, so a
-   * second click can't fire while ssh is still starting.
+   * second click can't fire while ssh is still starting. "reconnecting" looks
+   * the same but stays clickable: switching it off stops auto-reconnect.
    */
   interface Props {
-    state: "on" | "off" | "connecting";
+    state: "on" | "off" | "connecting" | "reconnecting";
     label: string;
     onToggle: () => void;
     disabled?: boolean;
@@ -18,7 +19,7 @@
   class="toggle {state}"
   role="switch"
   aria-checked={state !== "off"}
-  aria-busy={state === "connecting"}
+  aria-busy={state === "connecting" || state === "reconnecting"}
   aria-label={label}
   title={label}
   disabled={disabled || state === "connecting"}
@@ -48,7 +49,8 @@
     border-color: var(--success-track-border);
   }
 
-  .toggle.connecting {
+  .toggle.connecting,
+  .toggle.reconnecting {
     background: var(--warning-track);
     border-color: var(--warning-track-border);
   }
@@ -74,7 +76,8 @@
   }
 
   .on .knob,
-  .connecting .knob {
+  .connecting .knob,
+  .reconnecting .knob {
     left: 20px;
     background: #ffffff;
   }

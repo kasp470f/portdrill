@@ -1,4 +1,5 @@
 import type { ErrorKind, Rule, RuleWithStatus } from "./types";
+import { isActiveStatus } from "./types";
 
 export type ErrorAction =
   | "reviewKey"
@@ -81,7 +82,7 @@ export function describeError(
       const other = allRules.find(
         (r) =>
           r.id !== rule.id &&
-          (r.tunnelStatus.status === "connected" || r.tunnelStatus.status === "connecting") &&
+          isActiveStatus(r.tunnelStatus) &&
           r.forwards.some((f) => f.forwardType !== "remote" && f.localPort === port),
       );
       return {

@@ -71,6 +71,9 @@ pub struct Rule {
     pub group: String,
     /// Whether the rule card collapses its forwards. Remembered per rule.
     pub forwards_hidden: bool,
+    /// Try to bring the tunnel back when it drops after having been up.
+    /// Off unless the user turns it on; older configs load as off.
+    pub auto_reconnect: bool,
 }
 
 /// What went wrong, so the UI can explain it and offer the right fix instead of
@@ -106,6 +109,16 @@ pub enum TunnelStatus {
     Disconnected,
     Connecting,
     Connected,
+    /// The tunnel dropped and auto-reconnect is waiting for, or making,
+    /// attempt `attempt` of `max_attempts`. `message`/`kind` say why the last
+    /// connection (or attempt) ended.
+    #[serde(rename_all = "camelCase")]
+    Reconnecting {
+        attempt: u32,
+        max_attempts: u32,
+        message: String,
+        kind: ErrorKind,
+    },
     #[serde(rename_all = "camelCase")]
     Error {
         message: String,
@@ -115,15 +128,25 @@ pub enum TunnelStatus {
         host_key_changed: bool,
         #[serde(default)]
         kind: ErrorKind,
+        /// How many reconnect attempts failed before this error was shown.
+        /// 0 when auto-reconnect wasn't involved.
+        #[serde(default)]
+        reconnect_attempts: u32,
     },
 }
 
 impl TunnelStatus {
     pub fn error(message: String, kind: ErrorKind) -> Self {
+        Self::gave_up(message, kind, 0)
+    }
+
+    /// The error shown once auto-reconnect stops trying.
+    pub fn gave_up(message: String, kind: ErrorKind, reconnect_attempts: u32) -> Self {
         TunnelStatus::Error {
             message,
             host_key_changed: kind == ErrorKind::HostKeyChanged,
             kind,
+            reconnect_attempts,
         }
     }
 }
@@ -150,6 +173,9 @@ pub struct RuleWithStatus {
     #[serde(flatten)]
     pub rule: Rule,
     pub tunnel_status: TunnelStatus,
+    /// Auto-reconnect paused from the row menu. In memory only, so it resets
+    /// when PortDrill restarts.
+    pub auto_reconnect_paused: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

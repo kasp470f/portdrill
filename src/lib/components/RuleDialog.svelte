@@ -7,6 +7,7 @@
   import Modal from "./Modal.svelte";
   import Icon from "./Icon.svelte";
   import GroupSelect from "./GroupSelect.svelte";
+  import Toggle from "./Toggle.svelte";
   import PasteCommands from "./PasteCommands.svelte";
 
   interface Props {
@@ -31,9 +32,10 @@
   let pasted = $state<Rule[]>([]);
 
   let groups = $derived([...new Set($rules.map((r) => r.group).filter((g) => g))]);
-  let wasConnected = $derived(
-    isEdit && $rules.find((r) => r.id === form.id)?.tunnelStatus.status === "connected",
-  );
+  let wasConnected = $derived.by(() => {
+    const status = isEdit ? $rules.find((r) => r.id === form.id)?.tunnelStatus.status : undefined;
+    return status === "connected" || status === "reconnecting";
+  });
 
   const types: { id: ForwardType; label: string }[] = [
     { id: "local", label: "Local" },
@@ -263,6 +265,18 @@
           + Add another forward
         </button>
       </fieldset>
+
+      <div class="option-row">
+        <span class="option-text">
+          <span class="legend-title">Reconnect automatically</span>
+          <span class="legend-sub">If the connection drops, try again up to 3 times.</span>
+        </span>
+        <Toggle
+          state={form.autoReconnect ? "on" : "off"}
+          label="Reconnect automatically"
+          onToggle={() => (form.autoReconnect = !form.autoReconnect)}
+        />
+      </div>
     </form>
   {/if}
 
@@ -356,6 +370,20 @@
   .legend-sub {
     font-size: 12px;
     color: var(--text-secondary);
+  }
+
+  .option-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-grow: 1;
+    min-width: 0;
   }
 
   .server-row {

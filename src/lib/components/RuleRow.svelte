@@ -2,11 +2,12 @@
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { open as openFile } from "@tauri-apps/plugin-dialog";
   import type { RuleWithStatus } from "../types";
-  import { toCleanRule } from "../types";
+  import { isActiveStatus, toCleanRule } from "../types";
   import { formatSshCommand } from "../sshParser";
   import { describeError, type ErrorAction } from "../errorCopy";
   import {
     duplicateRule,
+    setAutoReconnectPaused,
     setForwardsHidden,
     setRuleGroup,
     toggleRule,
@@ -35,10 +36,37 @@
   let rowEl: HTMLDivElement | undefined = $state();
 
   let status = $derived(rule.tunnelStatus.status);
-  let active = $derived(status === "connected" || status === "connecting");
-  let toggleState = $derived<"on" | "off" | "connecting">(
-    status === "connecting" ? "connecting" : status === "connected" ? "on" : "off",
+  let active = $derived(isActiveStatus(rule.tunnelStatus));
+  let toggleState = $derived<"on" | "off" | "connecting" | "reconnecting">(
+    status === "connecting"
+      ? "connecting"
+      : status === "reconnecting"
+        ? "reconnecting"
+        : status === "connected"
+          ? "on"
+          : "off",
   );
+  let toggleLabel = $derived(
+    status === "connecting"
+      ? `Connecting to ${rule.name}…`
+      : status === "reconnecting"
+        ? `Stop reconnecting ${rule.name}`
+        : active
+          ? `Disconnect ${rule.name}`
+          : `Connect ${rule.name}`,
+  );
+  let reconnectProgress = $derived(
+    rule.tunnelStatus.status === "reconnecting"
+      ? `Reconnecting… ${rule.tunnelStatus.attempt} of ${rule.tunnelStatus.maxAttempts}`
+      : "",
+  );
+  // Shown in the error box once auto-reconnect has stopped trying.
+  let gaveUpNote = $derived.by(() => {
+    if (rule.tunnelStatus.status !== "error") return "";
+    const tries = rule.tunnelStatus.reconnectAttempts ?? 0;
+    if (tries === 0) return "";
+    return `The connection dropped. Auto-reconnect gave up after ${tries} ${tries === 1 ? "try" : "tries"}.`;
+  });
   let host = $derived(
     `${rule.sshUser ? rule.sshUser + "@" : ""}${rule.sshHost}${rule.sshPort !== 22 ? ":" + rule.sshPort : ""}`,
   );
@@ -101,6 +129,13 @@
       case "toggleForwards":
         try {
           await setForwardsHidden(rule.id, !rule.forwardsHidden);
+        } catch (e) {
+          showMessage(String(e), "error");
+        }
+        break;
+      case "toggleAutoReconnect":
+        try {
+          await setAutoReconnectPaused(rule.id, !rule.autoReconnectPaused);
         } catch (e) {
           showMessage(String(e), "error");
         }
@@ -188,6 +223,8 @@
       <span class="host mono">{host}</span>
       {#if status === "connecting"}
         <span class="status connecting">Connecting…</span>
+      {:else if status === "reconnecting"}
+        <span class="status connecting">{reconnectProgress}</span>
       {:else if status === "error"}
         <span class="status failed">Failed</span>
       {/if}
@@ -222,7 +259,7 @@
     </div>
     <Toggle
       state={toggleState}
-      label={status === "connecting" ? `Connecting to ${rule.name}…` : active ? `Disconnect ${rule.name}` : `Connect ${rule.name}`}
+      label={toggleLabel}
       onToggle={() => void connectOrDisconnect()}
     />
   </div>
@@ -240,6 +277,7 @@
       <strong>{error.title}</strong>
       <p>{error.explain}</p>
       {#if error.meta}<span class="meta">{error.meta}</span>{/if}
+      {#if gaveUpNote}<span class="meta">{gaveUpNote}</span>{/if}
       <div class="raw">
         <span class="raw-label">ssh said</span>
         <code>{error.raw}</code>

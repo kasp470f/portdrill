@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { RuleWithStatus } from "../types";
+  import { isActiveStatus } from "../types";
   import { rules, loading, fetchRules, listenForStatusChanges, reorderRules } from "../stores/rules";
   import { pendingDeletes } from "../stores/ui";
   import Icon from "./Icon.svelte";
@@ -47,8 +48,7 @@
   let groupNames = $derived([...new Set(visible.map((r) => r.group).filter((g) => g))]);
   let hasGroups = $derived(groupNames.length > 0);
 
-  const isActive = (r: RuleWithStatus) =>
-    r.tunnelStatus.status === "connected" || r.tunnelStatus.status === "connecting";
+  const isActive = (r: RuleWithStatus) => isActiveStatus(r.tunnelStatus);
 
   function matches(r: RuleWithStatus): boolean {
     if (filter === "active" && !isActive(r)) return false;
@@ -86,7 +86,7 @@
           dots: all.map((r) =>
             r.tunnelStatus.status === "connected"
               ? "var(--success)"
-              : r.tunnelStatus.status === "connecting"
+              : r.tunnelStatus.status === "connecting" || r.tunnelStatus.status === "reconnecting"
                 ? "var(--warning)"
                 : r.tunnelStatus.status === "error"
                   ? "var(--danger)"

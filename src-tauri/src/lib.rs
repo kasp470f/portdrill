@@ -10,6 +10,7 @@ use tauri::Manager;
 use tauri::Emitter;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -60,6 +61,7 @@ pub fn run() {
             commands::clear_host_key,
             commands::set_forwards_hidden,
             commands::set_rule_group,
+            commands::set_auto_reconnect_paused,
             commands::ssh_available,
         ])
         .setup(|app| {
@@ -137,7 +139,20 @@ pub fn run() {
             std::thread::spawn(move || loop {
                 std::thread::sleep(std::time::Duration::from_secs(5));
                 let state: tauri::State<AppState> = handle.state();
-                state.tunnel_manager.health_check(&handle);
+                // Copied under a short lock: the health check takes the tunnel
+                // locks, and must never hold the rules lock while it does.
+                let auto_reconnect: HashSet<String> = state
+                    .rules
+                    .lock()
+                    .map(|rules| {
+                        rules
+                            .iter()
+                            .filter(|r| r.auto_reconnect)
+                            .map(|r| r.id.clone())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                state.tunnel_manager.health_check(&handle, &auto_reconnect);
             });
 
             Ok(())
