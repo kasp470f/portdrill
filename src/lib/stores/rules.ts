@@ -1,7 +1,7 @@
 import { get, writable } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { HostKeyInfo, Rule, RuleWithStatus, StatusEvent } from "../types";
+import type { ErrorKind, HostKeyInfo, Rule, RuleWithStatus, StatusEvent } from "../types";
 import { toCleanRule } from "../types";
 
 export const rules = writable<RuleWithStatus[]>([]);
@@ -10,8 +10,32 @@ export const loading = writable(true);
 export async function fetchRules() {
   loading.set(true);
   const result = await invoke<RuleWithStatus[]>("get_rules");
-  rules.set(result);
+  // Once ssh has exited the backend reports a failed rule as plain off: the
+  // error lives only here. Keep it, so a reload for some other reason (a
+  // reorder, a group move, another rule's edit) doesn't wipe it. It goes when
+  // the user acts on it: see clearErrors.
+  const before = new Map(get(rules).map((r) => [r.id, r.tunnelStatus]));
+  rules.set(
+    result.map((r) => {
+      const prev = before.get(r.id);
+      return prev?.status === "error" && r.tunnelStatus.status === "disconnected" ? { ...r, tunnelStatus: prev } : r;
+    }),
+  );
   loading.set(false);
+}
+
+/**
+ * Takes the error box off rules whose failure the user has just dealt with,
+ * leaving them off. `match` narrows it to errors of a particular kind.
+ */
+function clearErrors(ids: (r: RuleWithStatus) => boolean, match: (kind: ErrorKind) => boolean = () => true) {
+  rules.update((current) =>
+    current.map((r) =>
+      r.tunnelStatus.status === "error" && ids(r) && match(r.tunnelStatus.kind)
+        ? { ...r, tunnelStatus: { status: "disconnected" as const } }
+        : r,
+    ),
+  );
 }
 
 export async function createRule(rule: Rule): Promise<Rule> {
@@ -32,6 +56,8 @@ export async function createRules(list: Rule[]): Promise<Rule[]> {
 
 export async function updateRule(rule: Rule): Promise<Rule> {
   const updated = await invoke<Rule>("update_rule", { rule: toCleanRule(rule) });
+  // The error described the old settings; editing is how most are fixed.
+  clearErrors((r) => r.id === rule.id);
   await fetchRules();
   return updated;
 }
@@ -85,6 +111,16 @@ export async function toggleRule(id: string): Promise<boolean> {
         : r,
     ),
   );
+  if (!connected) {
+    // Stopping a rule frees its local ports, which settles a "port in use"
+    // error on any rule that was blocked by it.
+    const stopped = get(rules).find((r) => r.id === id);
+    const freed = new Set(stopped?.forwards.filter((f) => f.forwardType !== "remote").map((f) => f.localPort));
+    clearErrors(
+      (r) => r.id !== id && r.forwards.some((f) => f.forwardType !== "remote" && freed.has(f.localPort)),
+      (kind) => kind === "localPortBusy",
+    );
+  }
   return connected;
 }
 
@@ -133,7 +169,18 @@ export async function inspectHostKey(id: string): Promise<HostKeyInfo> {
 }
 
 export async function clearHostKey(id: string): Promise<string> {
-  return await invoke<string>("clear_host_key", { id });
+  const result = await invoke<string>("clear_host_key", { id });
+  // known_hosts is per server, so this settles the mismatch for every rule
+  // that connects to the same host and port, not just the one reviewed.
+  const target = get(rules).find((r) => r.id === id);
+  if (target) {
+    const host = target.sshHost.toLowerCase();
+    clearErrors(
+      (r) => r.sshHost.toLowerCase() === host && r.sshPort === target.sshPort,
+      (kind) => kind === "hostKeyChanged",
+    );
+  }
+  return result;
 }
 
 /** Resolves once the listener is registered, so nothing emitted after is missed. */
